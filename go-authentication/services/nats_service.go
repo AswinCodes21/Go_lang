@@ -11,7 +11,8 @@ import (
 )
 
 type NatsService struct {
-	nc *nats.Conn
+	nc1 *nats.Conn
+	nc2 *nats.Conn
 }
 
 var natsService *NatsService
@@ -21,14 +22,22 @@ func NewNatsService() (*NatsService, error) {
 		return natsService, nil
 	}
 
-	// Connect to NATS server
-	nc, err := nats.Connect(nats.DefaultURL)
+	// Connect to first NATS server
+	nc1, err := nats.Connect("nats://localhost:4222")
 	if err != nil {
-		return nil, fmt.Errorf("error connecting to NATS: %v", err)
+		return nil, fmt.Errorf("error connecting to first NATS server: %v", err)
+	}
+
+	// Connect to second NATS server
+	nc2, err := nats.Connect("nats://localhost:4223")
+	if err != nil {
+		nc1.Close()
+		return nil, fmt.Errorf("error connecting to second NATS server: %v", err)
 	}
 
 	natsService = &NatsService{
-		nc: nc,
+		nc1: nc1,
+		nc2: nc2,
 	}
 
 	return natsService, nil
@@ -47,10 +56,24 @@ func GetPrivateSubject(user1ID, user2ID int) string {
 func (s *NatsService) SubscribeToPrivateMessages(userID int, messageHandler func(msg *domain.Message)) error {
 	// Subscribe to all private messages where this user is either sender or receiver
 	pattern := fmt.Sprintf("chat.private.%d.*", userID)
-	_, err := s.nc.Subscribe(pattern, func(msg *nats.Msg) {
+
+	// Subscribe on both servers
+	_, err := s.nc1.Subscribe(pattern, func(msg *nats.Msg) {
 		var message domain.Message
 		if err := json.Unmarshal(msg.Data, &message); err != nil {
-			log.Printf("Error unmarshaling message: %v", err)
+			log.Printf("Error unmarshaling message from server 1: %v", err)
+			return
+		}
+		messageHandler(&message)
+	})
+	if err != nil {
+		return err
+	}
+
+	_, err = s.nc2.Subscribe(pattern, func(msg *nats.Msg) {
+		var message domain.Message
+		if err := json.Unmarshal(msg.Data, &message); err != nil {
+			log.Printf("Error unmarshaling message from server 2: %v", err)
 			return
 		}
 		messageHandler(&message)
@@ -66,12 +89,20 @@ func (s *NatsService) SendPrivateMessage(message *domain.Message) error {
 	}
 
 	subject := GetPrivateSubject(message.SenderID, message.ReceiverID)
-	return s.nc.Publish(subject, data)
+
+	// Publish to both servers
+	if err := s.nc1.Publish(subject, data); err != nil {
+		return err
+	}
+	return s.nc2.Publish(subject, data)
 }
 
-// Close closes the NATS connection
+// Close closes the NATS connections
 func (s *NatsService) Close() {
-	if s.nc != nil {
-		s.nc.Close()
+	if s.nc1 != nil {
+		s.nc1.Close()
+	}
+	if s.nc2 != nil {
+		s.nc2.Close()
 	}
 }
