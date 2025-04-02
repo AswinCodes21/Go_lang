@@ -3,6 +3,7 @@ package handlers
 import (
 	"net/http"
 
+	"go-authentication/internal/domain"
 	"go-authentication/services"
 
 	"github.com/gin-gonic/gin"
@@ -19,7 +20,7 @@ func NewMessageHandler(natsService *services.NatsService) *MessageHandler {
 }
 
 type SendMessageRequest struct {
-	To      string `json:"to" binding:"required"`
+	To      int    `json:"to" binding:"required"`
 	Content string `json:"content" binding:"required"`
 }
 
@@ -37,7 +38,13 @@ func (h *MessageHandler) SendMessage(c *gin.Context) {
 		return
 	}
 
-	err := h.natsService.SendPrivateMessage(fromUser.(string), req.To, req.Content)
+	message := &domain.Message{
+		SenderID:   fromUser.(int),
+		ReceiverID: req.To,
+		Content:    req.Content,
+	}
+
+	err := h.natsService.SendPrivateMessage(message)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to send message"})
 		return
