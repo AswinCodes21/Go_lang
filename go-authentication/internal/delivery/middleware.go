@@ -6,6 +6,8 @@ import (
 
 	"go-authentication/pkg"
 
+	"log"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -43,6 +45,9 @@ func AuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
+		// Debug logging
+		log.Printf("Received Authorization header: %s", authHeader)
+
 		// Extract token (format: "Bearer <token>")
 		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 		if tokenString == "" {
@@ -51,19 +56,23 @@ func AuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		// Validate token
+		// Debug logging
+		log.Printf("Extracted token: %s", tokenString)
+
+		// Validate token and get claims
 		claims, err := pkg.ValidateJWT(tokenString)
 		if err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired token"})
+			log.Printf("Token validation error: %v", err)
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
 			c.Abort()
 			return
 		}
 
+		// Debug logging
+		log.Printf("Token validated successfully. User ID: %v", claims["user_id"])
+
+		// Set user ID in context
 		c.Set("user_id", claims["user_id"])
-		c.Set("email", claims["email"])
-
 		c.Next()
-
 	}
-
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"go-authentication/internal/domain"
 	"go-authentication/internal/usecase"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -72,6 +73,7 @@ func (h *ChatHandler) GetConversationMessagesHandler(c *gin.Context) {
 	// Get user ID from token
 	userIDValue, exists := c.Get("user_id")
 	if !exists {
+		log.Printf("User ID not found in context")
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
@@ -84,17 +86,23 @@ func (h *ChatHandler) GetConversationMessagesHandler(c *gin.Context) {
 	case float64:
 		userID = int(v)
 	default:
+		log.Printf("Invalid user ID type: %T", v)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid user ID type"})
 		return
 	}
+
+	log.Printf("Getting messages for user %d", userID)
 
 	// Get other user's ID from URL parameter
 	otherUserIDStr := c.Param("user_id")
 	otherUserID, err := strconv.Atoi(otherUserIDStr)
 	if err != nil {
+		log.Printf("Invalid user ID parameter: %s", otherUserIDStr)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user ID"})
 		return
 	}
+
+	log.Printf("Getting messages between users %d and %d", userID, otherUserID)
 
 	// Parse query parameters
 	limitStr := c.DefaultQuery("limit", "20")
@@ -120,6 +128,7 @@ func (h *ChatHandler) GetConversationMessagesHandler(c *gin.Context) {
 	)
 
 	if err != nil {
+		log.Printf("Error getting messages: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -134,6 +143,7 @@ func (h *ChatHandler) GetUserConversationsHandler(c *gin.Context) {
 	// Get user ID from token
 	userIDValue, exists := c.Get("user_id")
 	if !exists {
+		log.Printf("User ID not found in context")
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
@@ -146,9 +156,12 @@ func (h *ChatHandler) GetUserConversationsHandler(c *gin.Context) {
 	case float64:
 		userID = int(v)
 	default:
+		log.Printf("Invalid user ID type: %T", v)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid user ID type"})
 		return
 	}
+
+	log.Printf("Getting conversations for user %d", userID)
 
 	// Get conversations
 	conversations, err := h.ChatUsecase.GetUserConversations(
@@ -157,6 +170,7 @@ func (h *ChatHandler) GetUserConversationsHandler(c *gin.Context) {
 	)
 
 	if err != nil {
+		log.Printf("Error getting conversations: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
