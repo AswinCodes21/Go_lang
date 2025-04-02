@@ -30,8 +30,8 @@ COPY --from=builder /app/main .
 # Ensure the binary is executable
 RUN chmod +x ./main
 
-#exposing the app to 8000 port
-EXPOSE 8000
+#exposing the app to 8081 port
+EXPOSE 8081
 
 #run the binary when the container starts
 CMD ["./main"]
