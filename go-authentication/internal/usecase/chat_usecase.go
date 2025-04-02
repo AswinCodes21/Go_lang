@@ -5,19 +5,23 @@ import (
 	"errors"
 	"go-authentication/internal/domain"
 	"go-authentication/internal/repository"
+	"go-authentication/services"
+	"log"
 )
 
 // ChatUsecase handles business logic for chat operations
 type ChatUsecase struct {
-	ChatRepo repository.ChatRepository
-	UserRepo repository.UserRepository
+	ChatRepo    repository.ChatRepository
+	UserRepo    repository.UserRepository
+	NatsService *services.NatsService
 }
 
 // NewChatUsecase creates a new instance of ChatUsecase
-func NewChatUsecase(chatRepository repository.ChatRepository, userRepository repository.UserRepository) *ChatUsecase {
+func NewChatUsecase(chatRepository repository.ChatRepository, userRepository repository.UserRepository, natsService *services.NatsService) *ChatUsecase {
 	return &ChatUsecase{
-		ChatRepo: chatRepository,
-		UserRepo: userRepository,
+		ChatRepo:    chatRepository,
+		UserRepo:    userRepository,
+		NatsService: natsService,
 	}
 }
 
@@ -62,7 +66,19 @@ func (uc *ChatUsecase) SendMessage(ctx context.Context, senderID int, receiverID
 		return nil, err
 	}
 
+	// Send message through NATS for real-time delivery
+	err = uc.NatsService.SendPrivateMessage(message)
+	if err != nil {
+		// Log the error but don't fail the operation since the message is already saved
+		log.Printf("Error sending message through NATS: %v", err)
+	}
+
 	return message, nil
+}
+
+// SubscribeToMessages sets up a subscription for real-time messages
+func (uc *ChatUsecase) SubscribeToMessages(userID int, messageHandler func(msg *domain.Message)) error {
+	return uc.NatsService.SubscribeToPrivateMessages(userID, messageHandler)
 }
 
 // GetConversationMessages retrieves messages between two users

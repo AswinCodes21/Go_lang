@@ -74,4 +74,4 @@ func (s *NatsService) Close() {
 	if s.nc != nil {
 		s.nc.Close()
 	}
-}
+} 

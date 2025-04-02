@@ -41,7 +41,7 @@ func main() {
 
 	// Initialize usecases
 	authUsecase := usecase.NewAuthorizaationcase(userRepository)
-	chatUsecase := usecase.NewChatUsecase(chatRepository, userRepository)
+	chatUsecase := usecase.NewChatUsecase(chatRepository, userRepository, natsService)
 
 	// Initialize handlers
 	authHandler := delivery.NewAuthHandler(authUsecase)
