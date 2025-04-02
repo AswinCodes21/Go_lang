@@ -3,10 +3,12 @@ package main
 import (
 	"go-authentication/config"
 	"go-authentication/db"
+	"go-authentication/handlers"
 	"go-authentication/internal/delivery"
 	"go-authentication/internal/repository"
 	"go-authentication/internal/routes"
 	"go-authentication/internal/usecase"
+	"go-authentication/services"
 	"log"
 
 	"github.com/gin-gonic/gin"
@@ -26,6 +28,13 @@ func main() {
 	// Run database migrations
 	db.Migrate()
 
+	// Initialize NATS service
+	natsService, err := services.NewNatsService()
+	if err != nil {
+		log.Fatalf("Failed to initialize NATS service: %v", err)
+	}
+	defer natsService.Close()
+
 	// Initialize repositories
 	userRepository := repository.NewUserRepository()
 	chatRepository := repository.NewChatRepository()
@@ -38,6 +47,7 @@ func main() {
 	authHandler := delivery.NewAuthHandler(authUsecase)
 	chatHandler := delivery.NewChatHandler(chatUsecase)
 	wsHandler := delivery.NewWebSocketHandler(chatUsecase)
+	messageHandler := handlers.NewMessageHandler(natsService)
 
 	// Initialize and configure router
 	router := gin.Default()
@@ -47,6 +57,7 @@ func main() {
 
 	// Register routes
 	routes.SetupRoutes(router, authHandler, chatHandler, wsHandler)
+	messageHandler.SetupRoutes(router)
 
 	// Start the server
 	port := cfg.Port
