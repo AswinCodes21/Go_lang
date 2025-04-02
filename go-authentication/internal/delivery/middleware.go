@@ -71,8 +71,9 @@ func AuthMiddleware() gin.HandlerFunc {
 		// Debug logging
 		log.Printf("Token validated successfully. User ID: %v", claims["user_id"])
 
-		// Set user ID in context
+		// Set user ID and email in context
 		c.Set("user_id", claims["user_id"])
+		c.Set("email", claims["email"])
 		c.Next()
 	}
 }

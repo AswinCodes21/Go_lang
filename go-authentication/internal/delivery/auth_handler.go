@@ -62,8 +62,37 @@ func (h *AuthHandler) LoginHandler(c *gin.Context) {
 }
 
 func (h *AuthHandler) ProtectedHandler(c *gin.Context) {
-	userID := c.GetInt("user_id")
-	email := c.GetString("email")
+	// Get user data from context
+	userIDValue, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
+		return
+	}
+
+	emailValue, exists := c.Get("email")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Email not found"})
+		return
+	}
+
+	// Convert userID to int (might be float64 from JWT claims)
+	var userID int
+	switch v := userIDValue.(type) {
+	case int:
+		userID = v
+	case float64:
+		userID = int(v)
+	default:
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID type"})
+		return
+	}
+
+	email, ok := emailValue.(string)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid email type"})
+		return
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Protected Data",
 		"user_id": userID,
