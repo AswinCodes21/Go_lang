@@ -9,7 +9,6 @@ import (
 	"log"
 	"net/http"
 	"sync"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
@@ -75,6 +74,19 @@ func (h *WebSocketHandler) HandleWebSocket(c *gin.Context) {
 	// Register client
 	h.registerClient(client)
 
+	// Subscribe to NATS for real-time messages
+	err = h.ChatUsecase.SubscribeToMessages(userID, func(msg *domain.Message) {
+		// Send message to client
+		msgData, _ := json.Marshal(msg)
+		client.Send <- pkg.WebSocketMessage{
+			Type: "message",
+			Data: msgData,
+		}
+	})
+	if err != nil {
+		log.Printf("Error subscribing to messages: %v", err)
+	}
+
 	// Start client handlers
 	go h.handleMessages(client)
 	go h.handleClientConnection(client)
@@ -99,53 +111,7 @@ func (h *WebSocketHandler) unregisterClient(client *pkg.Client) {
 	}
 }
 
-// getClient gets a client by ID
-func (h *WebSocketHandler) getClient(id int) *pkg.Client {
-	h.clientsMux.RLock()
-	defer h.clientsMux.RUnlock()
-	return h.clients[id]
-}
-
-// handleClientConnection handles a client's WebSocket connection
-func (h *WebSocketHandler) handleClientConnection(client *pkg.Client) {
-	defer func() {
-		h.unregisterClient(client)
-	}()
-
-	// Keep the connection alive with ping/pong
-	client.Conn.SetPingHandler(func(appData string) error {
-		err := client.Conn.WriteControl(websocket.PongMessage, []byte{}, time.Now().Add(10*time.Second))
-		if err == websocket.ErrCloseSent {
-			return nil
-		}
-		return err
-	})
-
-	// Main read loop
-	for {
-		_, message, err := client.Conn.ReadMessage()
-		if err != nil {
-			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				log.Printf("Error reading message: %v", err)
-			}
-			break
-		}
-
-		// Parse message
-		var wsMessage pkg.WebSocketMessage
-		if err := json.Unmarshal(message, &wsMessage); err != nil {
-			log.Printf("Error parsing message: %v", err)
-			continue
-		}
-
-		// Process message based on type
-		if wsMessage.Type == "chat" {
-			h.handleChatMessage(client, wsMessage.Data)
-		}
-	}
-}
-
-// handleMessages processes messages from the message channel
+// handleMessages handles sending messages to the client
 func (h *WebSocketHandler) handleMessages(client *pkg.Client) {
 	for message := range client.Send {
 		err := client.Conn.WriteJSON(message)
@@ -157,48 +123,43 @@ func (h *WebSocketHandler) handleMessages(client *pkg.Client) {
 	}
 }
 
-// handleChatMessage processes a chat message
-func (h *WebSocketHandler) handleChatMessage(client *pkg.Client, data json.RawMessage) {
-	var msgReq domain.MessageRequest
-	if err := json.Unmarshal(data, &msgReq); err != nil {
-		log.Printf("Error parsing chat message: %v", err)
-		return
-	}
+// handleClientConnection handles reading messages from the client
+func (h *WebSocketHandler) handleClientConnection(client *pkg.Client) {
+	defer h.unregisterClient(client)
 
-	// Store message in database
-	message, err := h.ChatUsecase.SendMessage(
-		context.Background(),
-		client.ID,
-		msgReq.ReceiverID,
-		msgReq.Content,
-	)
-	if err != nil {
-		log.Printf("Error saving message: %v", err)
-		// Send error message back to sender
-		errorData, _ := json.Marshal(map[string]string{"message": err.Error()})
-		errorMsg := pkg.WebSocketMessage{
-			Type: "error",
-			Data: errorData,
+	for {
+		_, message, err := client.Conn.ReadMessage()
+		if err != nil {
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+				log.Printf("Error reading message: %v", err)
+			}
+			break
 		}
-		client.Send <- errorMsg
-		return
-	}
 
-	// Send message to recipient if they're online
-	if recipient := h.getClient(msgReq.ReceiverID); recipient != nil {
-		messageData, _ := json.Marshal(message)
-		wsMessage := pkg.WebSocketMessage{
-			Type: "chat",
-			Data: messageData,
+		// Parse message
+		var msgReq domain.MessageRequest
+		if err := json.Unmarshal(message, &msgReq); err != nil {
+			log.Printf("Error parsing message: %v", err)
+			continue
 		}
-		recipient.Send <- wsMessage
-	}
 
-	// Send confirmation to sender
-	messageData, _ := json.Marshal(message)
-	confirmMsg := pkg.WebSocketMessage{
-		Type: "chat_confirmed",
-		Data: messageData,
+		// Send message through NATS
+		msg := &domain.Message{
+			SenderID:   client.ID,
+			ReceiverID: msgReq.ReceiverID,
+			Content:    msgReq.Content,
+		}
+
+		_, err = h.ChatUsecase.SendMessage(context.Background(), msg.SenderID, msg.ReceiverID, msg.Content)
+		if err != nil {
+			log.Printf("Error sending message: %v", err)
+			// Send error message back to client
+			errorData, _ := json.Marshal(map[string]string{"error": err.Error()})
+			errorMsg := pkg.WebSocketMessage{
+				Type: "error",
+				Data: errorData,
+			}
+			client.Send <- errorMsg
+		}
 	}
-	client.Send <- confirmMsg
 }

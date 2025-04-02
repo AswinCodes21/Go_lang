@@ -29,7 +29,7 @@ func Migrate() {
 	`
 
 	conversationsTable := `
-	CREATE TABLE IF NOT EXISTS communications (
+	CREATE TABLE IF NOT EXISTS conversations (
 		id SERIAL PRIMARY KEY,
 		user1_id INTEGER NOT NULL REFERENCES users(id),
 		user2_id INTEGER NOT NULL REFERENCES users(id),
