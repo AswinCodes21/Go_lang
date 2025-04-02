@@ -47,7 +47,7 @@ func main() {
 	authHandler := delivery.NewAuthHandler(authUsecase)
 	chatHandler := delivery.NewChatHandler(chatUsecase)
 	wsHandler := delivery.NewWebSocketHandler(chatUsecase)
-	messageHandler := handlers.NewMessageHandler(natsService)
+	messageHandler := handlers.NewMessageHandler(natsService, chatUsecase)
 
 	// Initialize and configure router
 	router := gin.Default()
@@ -56,8 +56,7 @@ func main() {
 	// router.Use(someMiddleware())
 
 	// Register routes
-	routes.SetupRoutes(router, authHandler, chatHandler, wsHandler)
-	messageHandler.SetupRoutes(router)
+	routes.SetupRoutes(router, authHandler, chatHandler, wsHandler, messageHandler)
 
 	// Start the server
 	port := cfg.Port

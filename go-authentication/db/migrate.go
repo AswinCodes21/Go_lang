@@ -7,6 +7,13 @@ import (
 )
 
 func Migrate() {
+	// Drop existing tables if they exist (this will cascade drop all constraints)
+	dropTables := `
+	DROP TABLE IF EXISTS messages CASCADE;
+	DROP TABLE IF EXISTS conversations CASCADE;
+	DROP TABLE IF EXISTS users CASCADE;
+	`
+
 	usersTable := `
 	CREATE TABLE IF NOT EXISTS users (
 		id SERIAL PRIMARY KEY,
@@ -35,13 +42,13 @@ func Migrate() {
 		user2_id INTEGER NOT NULL REFERENCES users(id),
 		last_message TEXT DEFAULT '',
 		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-		CONSTRAINT different_users CHECK (user1_id != user2_id),
+		CONSTRAINT conversations_different_users CHECK (user1_id != user2_id),
 		CONSTRAINT unique_conversation UNIQUE (user1_id, user2_id)
 	);
 	`
 
 	// Execute migrations
-	migrations := []string{usersTable, messagesTable, conversationsTable}
+	migrations := []string{dropTables, usersTable, messagesTable, conversationsTable}
 
 	for _, migration := range migrations {
 		_, err := DB.Exec(context.Background(), migration)

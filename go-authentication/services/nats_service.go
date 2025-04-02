@@ -11,27 +11,19 @@ import (
 )
 
 type NatsService struct {
-	nc1 *nats.Conn // Connection to first NATS server
-	nc2 *nats.Conn // Connection to second NATS server
+	nc *nats.Conn // Single NATS server connection
 }
 
 func NewNatsService() (*NatsService, error) {
-	// Connect to first NATS server
-	nc1, err := nats.Connect("nats://localhost:4222")
+	// Connect to single NATS server
+	nc, err := nats.Connect("nats://localhost:4222")
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to first NATS server: %v", err)
+		return nil, fmt.Errorf("failed to connect to NATS server: %v", err)
 	}
 
-	// Connect to second NATS server
-	nc2, err := nats.Connect("nats://localhost:4223")
-	if err != nil {
-		nc1.Close()
-		return nil, fmt.Errorf("failed to connect to second NATS server: %v", err)
-	}
-
+	log.Printf("Connected to NATS server successfully!")
 	return &NatsService{
-		nc1: nc1,
-		nc2: nc2,
+		nc: nc,
 	}, nil
 }
 
@@ -45,11 +37,9 @@ func GetPrivateSubject(user1ID, user2ID int) string {
 }
 
 func (s *NatsService) SubscribeToPrivateMessages(userID int, callback func(*domain.Message)) error {
-	// Subscribe to messages from both servers
 	subject := fmt.Sprintf("private.%d", userID)
 
-	// Subscribe to first server
-	_, err := s.nc1.Subscribe(subject, func(msg *nats.Msg) {
+	_, err := s.nc.Subscribe(subject, func(msg *nats.Msg) {
 		var message domain.Message
 		if err := json.Unmarshal(msg.Data, &message); err != nil {
 			log.Printf("Error unmarshaling message: %v", err)
@@ -58,20 +48,7 @@ func (s *NatsService) SubscribeToPrivateMessages(userID int, callback func(*doma
 		callback(&message)
 	})
 	if err != nil {
-		return fmt.Errorf("failed to subscribe to first server: %v", err)
-	}
-
-	// Subscribe to second server
-	_, err = s.nc2.Subscribe(subject, func(msg *nats.Msg) {
-		var message domain.Message
-		if err := json.Unmarshal(msg.Data, &message); err != nil {
-			log.Printf("Error unmarshaling message: %v", err)
-			return
-		}
-		callback(&message)
-	})
-	if err != nil {
-		return fmt.Errorf("failed to subscribe to second server: %v", err)
+		return fmt.Errorf("failed to subscribe: %v", err)
 	}
 
 	return nil
@@ -85,23 +62,15 @@ func (s *NatsService) SendPrivateMessage(message *domain.Message) error {
 
 	subject := fmt.Sprintf("private.%d", message.ReceiverID)
 
-	// Publish to both servers
-	if err := s.nc1.Publish(subject, data); err != nil {
-		return fmt.Errorf("failed to publish to first server: %v", err)
-	}
-
-	if err := s.nc2.Publish(subject, data); err != nil {
-		return fmt.Errorf("failed to publish to second server: %v", err)
+	if err := s.nc.Publish(subject, data); err != nil {
+		return fmt.Errorf("failed to publish message: %v", err)
 	}
 
 	return nil
 }
 
 func (s *NatsService) Close() {
-	if s.nc1 != nil {
-		s.nc1.Close()
-	}
-	if s.nc2 != nil {
-		s.nc2.Close()
+	if s.nc != nil {
+		s.nc.Close()
 	}
 }
