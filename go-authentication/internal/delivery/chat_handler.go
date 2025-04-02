@@ -118,7 +118,7 @@ func (h *ChatHandler) GetConversationMessagesHandler(c *gin.Context) {
 		offset = 0
 	}
 
-	// Get messages
+	// Get messages from database
 	messages, err := h.ChatUsecase.GetConversationMessages(
 		context.Background(),
 		userID,
@@ -163,7 +163,7 @@ func (h *ChatHandler) GetUserConversationsHandler(c *gin.Context) {
 
 	log.Printf("Getting conversations for user %d", userID)
 
-	// Get conversations
+	// Get conversations from database
 	conversations, err := h.ChatUsecase.GetUserConversations(
 		context.Background(),
 		userID,
