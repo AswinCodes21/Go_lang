@@ -77,9 +77,10 @@ func (h *WebSocketHandler) HandleWebSocket(c *gin.Context) {
 	// Subscribe to NATS for real-time messages
 	err = h.ChatUsecase.SubscribeToMessages(userID, func(msg *domain.Message) {
 		// Send message to client
+		msgData, _ := json.Marshal(msg)
 		client.Send <- pkg.WebSocketMessage{
 			Type: "message",
-			Data: msg,
+			Data: msgData,
 		}
 	})
 	if err != nil {
@@ -149,13 +150,14 @@ func (h *WebSocketHandler) handleClientConnection(client *pkg.Client) {
 			Content:    msgReq.Content,
 		}
 
-		err = h.ChatUsecase.SendMessage(context.Background(), msg.SenderID, msg.ReceiverID, msg.Content)
+		_, err = h.ChatUsecase.SendMessage(context.Background(), msg.SenderID, msg.ReceiverID, msg.Content)
 		if err != nil {
 			log.Printf("Error sending message: %v", err)
 			// Send error message back to client
+			errorData, _ := json.Marshal(map[string]string{"error": err.Error()})
 			errorMsg := pkg.WebSocketMessage{
 				Type: "error",
-				Data: map[string]string{"error": err.Error()},
+				Data: errorData,
 			}
 			client.Send <- errorMsg
 		}
