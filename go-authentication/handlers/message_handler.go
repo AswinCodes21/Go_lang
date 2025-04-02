@@ -3,6 +3,7 @@ package handlers
 import (
 	"net/http"
 
+	"go-authentication/internal/delivery"
 	"go-authentication/internal/domain"
 	"go-authentication/services"
 
@@ -26,11 +27,14 @@ type SendMessageRequest struct {
 
 func (h *MessageHandler) SendMessage(c *gin.Context) {
 	// Get the sender's ID from the authenticated user context
-	fromUser, exists := c.Get("user")
+	userID, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
+
+	// Convert float64 to int
+	senderID := int(userID.(float64))
 
 	var req SendMessageRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -39,7 +43,7 @@ func (h *MessageHandler) SendMessage(c *gin.Context) {
 	}
 
 	message := &domain.Message{
-		SenderID:   fromUser.(int),
+		SenderID:   senderID,
 		ReceiverID: req.To,
 		Content:    req.Content,
 	}
@@ -55,6 +59,7 @@ func (h *MessageHandler) SendMessage(c *gin.Context) {
 
 func (h *MessageHandler) SetupRoutes(r *gin.Engine) {
 	messages := r.Group("/messages")
+	messages.Use(delivery.AuthMiddleware())
 	{
 		messages.POST("/send", h.SendMessage)
 	}
