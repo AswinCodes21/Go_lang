@@ -16,18 +16,13 @@ func SetupRoutes(router *gin.Engine, authHandler *delivery.AuthHandler, chatHand
 	// test Routes
 	router.GET("/testuser", delivery.AuthMiddleware(), authHandler.ProtectedHandler)
 
-	// Message Routes - All require authentication
-	messages := router.Group("/messages")
-	messages.Use(delivery.AuthMiddleware())
-	{
-		messages.POST("/send", messageHandler.SendMessage)
-		messages.GET("/:user_id", messageHandler.GetMessages)
-	}
-
 	// Chat Routes - All require authentication
 	chat := router.Group("/chat")
 	chat.Use(delivery.AuthMiddleware())
 	{
+		// Send a message
+		chat.POST("/send", messageHandler.SendMessage)
+
 		// Get messages from a conversation with a specific user
 		chat.GET("/messages/:user_id", chatHandler.GetConversationMessagesHandler)
 

@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:latest
+    container_name: go-authentication-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: admin@123
+      POSTGRES_DB: golang_project
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  postgres_data:
+
+
+networks:
+  app-network:
+    driver: bridge
