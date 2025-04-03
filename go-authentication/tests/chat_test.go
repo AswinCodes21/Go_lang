@@ -1,9 +1,10 @@
-package usecase
+package tests
 
 import (
 	"context"
 	"errors"
 	"go-authentication/internal/domain"
+	"go-authentication/internal/usecase"
 	"go-authentication/services"
 	"log"
 	"testing"
@@ -80,11 +81,11 @@ func (m *mockChatRepo) GetConvoByUserId(ctx context.Context, userID int) ([]*dom
 	return result, nil
 }
 
-type mockUserRepo struct {
+type mockChatUserRepo struct {
 	users map[int]*domain.User
 }
 
-func (m *mockUserRepo) GetByID(ctx context.Context, id int) (*domain.User, error) {
+func (m *mockChatUserRepo) GetByID(ctx context.Context, id int) (*domain.User, error) {
 	user, exists := m.users[id]
 	if !exists {
 		return nil, errors.New("user not found")
@@ -92,7 +93,7 @@ func (m *mockUserRepo) GetByID(ctx context.Context, id int) (*domain.User, error
 	return user, nil
 }
 
-func (m *mockUserRepo) Create(ctx context.Context, user *domain.User) error {
+func (m *mockChatUserRepo) Create(ctx context.Context, user *domain.User) error {
 	if user.ID == 0 {
 		user.ID = len(m.users) + 1
 	}
@@ -100,7 +101,7 @@ func (m *mockUserRepo) Create(ctx context.Context, user *domain.User) error {
 	return nil
 }
 
-func (m *mockUserRepo) GetByEmail(ctx context.Context, email string) (*domain.User, error) {
+func (m *mockChatUserRepo) GetByEmail(ctx context.Context, email string) (*domain.User, error) {
 	for _, user := range m.users {
 		if user.Email == email {
 			return user, nil
@@ -158,7 +159,7 @@ func TestSendMessage(t *testing.T) {
 		messages:      make([]*domain.Message, 0),
 		conversations: make([]*domain.Conversation, 0),
 	}
-	userRepo := &mockUserRepo{
+	userRepo := &mockChatUserRepo{
 		users: map[int]*domain.User{
 			1: {ID: 1, Name: "User1"},
 			2: {ID: 2, Name: "User2"},
@@ -176,7 +177,7 @@ func TestSendMessage(t *testing.T) {
 
 	// Create chat usecase with mock dependencies
 	log.Println("3. Creating chat usecase...")
-	chatUsecase := NewChatUsecase(chatRepo, userRepo, natsService)
+	chatUsecase := usecase.NewChatUsecase(chatRepo, userRepo, natsService)
 	log.Println("✓ Chat usecase created")
 
 	tests := []struct {
@@ -241,7 +242,7 @@ func TestGetMessages(t *testing.T) {
 			{ID: 2, SenderID: 2, ReceiverID: 1, Content: "Hi"},
 		},
 	}
-	userRepo := &mockUserRepo{
+	userRepo := &mockChatUserRepo{
 		users: map[int]*domain.User{
 			1: {ID: 1, Name: "User1"},
 			2: {ID: 2, Name: "User2"},
@@ -257,7 +258,7 @@ func TestGetMessages(t *testing.T) {
 	defer natsService.Close()
 	log.Println("✓ NATS service created")
 
-	chatUsecase := NewChatUsecase(chatRepo, userRepo, natsService)
+	chatUsecase := usecase.NewChatUsecase(chatRepo, userRepo, natsService)
 
 	tests := []struct {
 		name      string
@@ -317,7 +318,7 @@ func TestGetUserConversations(t *testing.T) {
 			{ID: 2, User1ID: 1, User2ID: 3, LastMessage: "Hi"},
 		},
 	}
-	userRepo := &mockUserRepo{
+	userRepo := &mockChatUserRepo{
 		users: map[int]*domain.User{
 			1: {ID: 1, Name: "User1"},
 			2: {ID: 2, Name: "User2"},
@@ -330,7 +331,7 @@ func TestGetUserConversations(t *testing.T) {
 	}
 	defer natsService.Close()
 
-	chatUsecase := NewChatUsecase(chatRepo, userRepo, natsService)
+	chatUsecase := usecase.NewChatUsecase(chatRepo, userRepo, natsService)
 
 	tests := []struct {
 		name      string
