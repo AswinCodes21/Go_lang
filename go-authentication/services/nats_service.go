@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"go-authentication/internal/domain"
 
@@ -18,7 +19,17 @@ type NatsService struct {
 func NewNatsService() (*NatsService, error) {
 	natsURL := os.Getenv("NATS_URL")
 	if natsURL == "" {
-		natsURL = "nats://nats:4222" // Default fallback
+		// Check if running in Docker
+		if _, err := os.Stat("/.dockerenv"); err == nil {
+			natsURL = "nats://nats:4222" // Docker environment
+		} else {
+			natsURL = "nats://localhost:4222" // Local development
+		}
+	}
+
+	// Replace nats:4222 with localhost:4222 if running locally
+	if !strings.Contains(natsURL, "localhost") && !strings.Contains(natsURL, "nats:") {
+		natsURL = strings.Replace(natsURL, "nats:4222", "localhost:4222", 1)
 	}
 
 	log.Printf("Connecting to NATS server at: %s", natsURL)
