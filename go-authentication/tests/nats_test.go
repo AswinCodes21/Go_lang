@@ -5,11 +5,25 @@ import (
 	"go-authentication/internal/domain"
 	"go-authentication/services"
 	"log"
+	"os"
 	"testing"
 	"time"
 
 	"github.com/nats-io/nats.go"
 )
+
+func getNatsURL() string {
+	natsURL := os.Getenv("NATS_URL")
+	if natsURL == "" {
+		// Check if running in Docker
+		if _, err := os.Stat("/.dockerenv"); err == nil {
+			natsURL = "nats://nats:4222" // Docker environment
+		} else {
+			natsURL = "nats://localhost:4222" // Local development
+		}
+	}
+	return natsURL
+}
 
 func TestNATSCommunication(t *testing.T) {
 	log.Println("Starting NATS Communication Test...")
@@ -71,7 +85,10 @@ func TestDirectNATSConnection(t *testing.T) {
 	log.Println("1. Connecting to NATS server...")
 
 	// Connect to NATS server
-	nc, err := nats.Connect("nats://localhost:4222")
+	natsURL := getNatsURL()
+	log.Printf("Connecting to NATS at: %s", natsURL)
+
+	nc, err := nats.Connect(natsURL)
 	if err != nil {
 		t.Fatalf("Failed to connect to server: %v", err)
 	}
