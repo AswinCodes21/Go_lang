@@ -20,7 +20,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o main ./cmd
 FROM alpine:latest
 
 # Install necessary certificates, curl, and wget for healthcheck
-RUN apk --no-cache add ca-certificates curl wget
+RUN apk --no-cache add ca-certificates curl wget dos2unix
 
 WORKDIR /root/
 
@@ -32,7 +32,8 @@ COPY --from=builder /app/config ./config
 
 # Copy the start script and make it executable
 COPY start.sh .
-RUN chmod +x start.sh
+# Convert Windows line endings to Unix and make executable
+RUN dos2unix start.sh && chmod +x start.sh
 
 # Expose port (using the port from .env)
 EXPOSE 8081

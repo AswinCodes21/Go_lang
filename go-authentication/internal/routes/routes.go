@@ -13,8 +13,8 @@ func SetupRoutes(router *gin.Engine, authHandler *delivery.AuthHandler, chatHand
 	router.POST("/signup", authHandler.SignupHandler)
 	router.POST("/login", authHandler.LoginHandler)
 
-	// Protected Routes
-	router.GET("/protected", delivery.AuthMiddleware(), authHandler.ProtectedHandler)
+	// test Routes
+	router.GET("/testuser", delivery.AuthMiddleware(), authHandler.ProtectedHandler)
 
 	// Message Routes - All require authentication
 	messages := router.Group("/messages")
