@@ -17,18 +17,27 @@ func ConnectDB(cfg *config.Config) {
 		cfg.DBUser, cfg.DBPassword, cfg.DBHost, cfg.DBPort, cfg.DBName, cfg.DBSSLMode)
 
 	var err error
-	DB, err = pgxpool.New(context.Background(), dsn)
-	if err != nil {
-		log.Fatal("Unable to connect to DB: ", err)
-	}
-
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	if err := DB.Ping(ctx); err != nil {
-		log.Fatal("DB connec test Failed:", err)
+
+	for i := 0; i < 3; i++ { // Retry mechanism (3 attempts)
+		DB, err = pgxpool.New(ctx, dsn)
+		if err == nil {
+			break
+		}
+		log.Printf("Attempt %d: Unable to connect to DB: %v", i+1, err)
+		time.Sleep(2 * time.Second) // Wait before retrying
 	}
 
-	log.Println("Connnected to Postgresql!")
+	if err != nil {
+		log.Fatal("Failed to establish database connection after retries: ", err)
+	}
+
+	if err := DB.Ping(ctx); err != nil {
+		log.Fatal("Database connection test failed: ", err)
+	}
+
+	log.Println("Connected to PostgreSQL!")
 }
 
 func CloseDB() {
