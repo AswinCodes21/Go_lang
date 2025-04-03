@@ -67,6 +67,11 @@ func (h *MessageHandler) GetMessages(c *gin.Context) {
 		return
 	}
 
+	// Set IsSent field for each message
+	for _, msg := range messages {
+		msg.IsSent = msg.SenderID == senderID
+	}
+
 	log.Printf("Found %d messages between users %d and %d", len(messages), senderID, otherUserID)
 
 	// Return the messages
