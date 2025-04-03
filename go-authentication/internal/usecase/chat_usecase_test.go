@@ -150,7 +150,10 @@ func (m *mockNatsService) Close() {
 
 // Test cases
 func TestSendMessage(t *testing.T) {
+	log.Println("Starting SendMessage Test...")
+
 	// Setup test dependencies
+	log.Println("1. Setting up test dependencies...")
 	chatRepo := &mockChatRepo{
 		messages:      make([]*domain.Message, 0),
 		conversations: make([]*domain.Conversation, 0),
@@ -161,14 +164,20 @@ func TestSendMessage(t *testing.T) {
 			2: {ID: 2, Name: "User2"},
 		},
 	}
+	log.Println("✓ Repositories initialized")
+
+	log.Println("2. Creating NATS service...")
 	natsService := NewMockNatsService()
 	if natsService == nil {
 		t.Fatal("Failed to create NATS service")
 	}
 	defer natsService.Close()
+	log.Println("✓ NATS service created")
 
 	// Create chat usecase with mock dependencies
+	log.Println("3. Creating chat usecase...")
 	chatUsecase := NewChatUsecase(chatRepo, userRepo, natsService)
+	log.Println("✓ Chat usecase created")
 
 	tests := []struct {
 		name       string
@@ -202,20 +211,30 @@ func TestSendMessage(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			log.Printf("\nRunning test case: %s", tt.name)
+			log.Printf("Parameters: sender=%d, receiver=%d, content=%s", tt.senderID, tt.receiverID, tt.content)
+
 			msg, err := chatUsecase.SendMessage(context.Background(), tt.senderID, tt.receiverID, tt.content)
 			if (err != nil) != tt.wantErr {
+				log.Printf("Test failed: error = %v, wantErr %v", err, tt.wantErr)
 				t.Errorf("SendMessage() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !tt.wantErr && msg == nil {
+				log.Println("Test failed: message is nil when no error expected")
 				t.Error("SendMessage() returned nil message when no error expected")
 			}
+			log.Printf("Test passed: %s", tt.name)
 		})
 	}
+	log.Println("✓ SendMessage Test completed")
 }
 
 func TestGetMessages(t *testing.T) {
+	log.Println("Starting GetMessages Test...")
+
 	// Setup test dependencies with some initial messages
+	log.Println("1. Setting up test dependencies...")
 	chatRepo := &mockChatRepo{
 		messages: []*domain.Message{
 			{ID: 1, SenderID: 1, ReceiverID: 2, Content: "Hello"},
@@ -228,11 +247,15 @@ func TestGetMessages(t *testing.T) {
 			2: {ID: 2, Name: "User2"},
 		},
 	}
+	log.Println("✓ Repositories initialized with test data")
+
+	log.Println("2. Creating NATS service...")
 	natsService := NewMockNatsService()
 	if natsService == nil {
 		t.Fatal("Failed to create NATS service")
 	}
 	defer natsService.Close()
+	log.Println("✓ NATS service created")
 
 	chatUsecase := NewChatUsecase(chatRepo, userRepo, natsService)
 
@@ -267,16 +290,23 @@ func TestGetMessages(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			log.Printf("\nRunning test case: %s", tt.name)
+			log.Printf("Parameters: user1=%d, user2=%d, limit=%d, offset=%d", tt.user1ID, tt.user2ID, tt.limit, tt.offset)
+
 			messages, err := chatUsecase.GetMessages(context.Background(), tt.user1ID, tt.user2ID, tt.limit, tt.offset)
 			if (err != nil) != tt.wantErr {
+				log.Printf("Test failed: error = %v, wantErr %v", err, tt.wantErr)
 				t.Errorf("GetMessages() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !tt.wantErr && len(messages) != tt.wantCount {
+				log.Printf("Test failed: got %d messages, want %d", len(messages), tt.wantCount)
 				t.Errorf("GetMessages() got %d messages, want %d", len(messages), tt.wantCount)
 			}
+			log.Printf("Test passed: %s", tt.name)
 		})
 	}
+	log.Println("✓ GetMessages Test completed")
 }
 
 func TestGetUserConversations(t *testing.T) {
