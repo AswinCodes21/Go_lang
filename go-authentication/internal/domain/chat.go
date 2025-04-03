@@ -12,6 +12,7 @@ type Message struct {
 	ReceiverID int       `json:"receiver_id"`
 	Content    string    `json:"content"`
 	CreatedAt  time.Time `json:"created_at"`
+	IsSent     bool      `json:"is_sent"` // true if the current user sent this message
 }
 
 // Conversation represents a chat conversation between two users
