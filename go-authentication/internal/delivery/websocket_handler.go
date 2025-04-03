@@ -74,22 +74,37 @@ func (h *WebSocketHandler) HandleWebSocket(c *gin.Context) {
 	// Register client
 	h.registerClient(client)
 
-	// Subscribe to NATS for real-time messages
+	// Subscribe to messages sent TO this user
 	err = h.ChatUsecase.SubscribeToMessages(userID, func(msg *domain.Message) {
-		// Send message to client
+		// Send received message to client
 		msgData, _ := json.Marshal(msg)
 		client.Send <- pkg.WebSocketMessage{
-			Type: "message",
+			Type: "message_received",
 			Data: msgData,
 		}
 	})
 	if err != nil {
-		log.Printf("Error subscribing to messages: %v", err)
+		log.Printf("Error subscribing to received messages: %v", err)
+	}
+
+	// Subscribe to messages sent BY this user
+	err = h.ChatUsecase.SubscribeToSentMessages(userID, func(msg *domain.Message) {
+		// Send sent message to client
+		msgData, _ := json.Marshal(msg)
+		client.Send <- pkg.WebSocketMessage{
+			Type: "message_sent",
+			Data: msgData,
+		}
+	})
+	if err != nil {
+		log.Printf("Error subscribing to sent messages: %v", err)
 	}
 
 	// Start client handlers
 	go h.handleMessages(client)
 	go h.handleClientConnection(client)
+
+	log.Printf("WebSocket client connected: %d", userID)
 }
 
 // registerClient adds a client to the clients map

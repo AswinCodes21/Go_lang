@@ -1,37 +1,45 @@
-# using official golang's image as builder image
-FROM golang:1.24 AS builder
+# Build stage
+FROM golang:1.24-alpine AS builder
 
-#setting the working dir
+# Set working directory
 WORKDIR /app
 
-#copy go mod and download dependencies
+# Copy go mod and sum files
 COPY go.mod go.sum ./
+
+# Download dependencies
 RUN go mod download
 
-#copy the rest of the app source code
+# Copy source code
 COPY . .
 
-#Building the GO app
-RUN CGO_ENABLED=0 GOOS=linux go build -o /app/main ./cmd
+# Build the application
+RUN CGO_ENABLED=0 GOOS=linux go build -o main ./cmd
 
-#using a light weight image to run the app
+# Final stage
 FROM alpine:latest
 
-#Setting the working dir in the new image
+# Install necessary certificates, curl, and wget for healthcheck
+RUN apk --no-cache add ca-certificates curl wget
+
 WORKDIR /root/
 
-# Copy the .env file into the container
-COPY .env .env
-
-
-#copy the compiled binaries from the builder
+# Copy the binary from builder
 COPY --from=builder /app/main .
 
-# Ensure the binary is executable
-RUN chmod +x ./main
+# Copy any necessary config files
+COPY --from=builder /app/config ./config
 
-#exposing the app to 8000 port
-EXPOSE 8000
+# Copy the start script
+COPY start.sh /root/start.sh
+RUN chmod +x /root/start.sh
 
-#run the binary when the container starts
-CMD ["./main"]
+# Expose port (using the port from .env)
+EXPOSE 8081
+
+# Add healthcheck
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8081/health || exit 1
+
+# Command to run the application
+CMD ["/root/start.sh"]

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
 
 	"go-authentication/internal/domain"
 
@@ -15,7 +16,13 @@ type NatsService struct {
 }
 
 func NewNatsService() (*NatsService, error) {
-	nc, err := nats.Connect("nats://localhost:4222")
+	natsURL := os.Getenv("NATS_URL")
+	if natsURL == "" {
+		natsURL = "nats://nats:4222" // Default fallback
+	}
+
+	log.Printf("Connecting to NATS server at: %s", natsURL)
+	nc, err := nats.Connect(natsURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to NATS server: %v", err)
 	}
