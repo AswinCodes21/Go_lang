@@ -99,8 +99,14 @@ func (uc *ChatUsecase) SendMessage(ctx context.Context, senderID int, receiverID
 }
 
 // SubscribeToMessages sets up a subscription for real-time messages
-func (uc *ChatUsecase) SubscribeToMessages(userID int, messageHandler func(msg *domain.Message)) error {
-	return uc.NatsService.SubscribeToPrivateMessages(userID, messageHandler)
+func (uc *ChatUsecase) SubscribeToMessages(userID int, callback func(*domain.Message)) error {
+	return uc.NatsService.SubscribeToPrivateMessages(userID, callback)
+}
+
+// SubscribeToSentMessages subscribes to messages sent BY a user
+func (uc *ChatUsecase) SubscribeToSentMessages(userID int, callback func(*domain.Message)) error {
+	subject := fmt.Sprintf("chat.sent.%d", userID)
+	return uc.NatsService.SubscribeToSubject(subject, callback)
 }
 
 // GetConversationMessages retrieves messages between two users

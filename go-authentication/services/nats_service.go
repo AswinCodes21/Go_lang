@@ -11,11 +11,10 @@ import (
 )
 
 type NatsService struct {
-	nc *nats.Conn // Single NATS server connection
+	nc *nats.Conn
 }
 
 func NewNatsService() (*NatsService, error) {
-	// Connect to single NATS server
 	nc, err := nats.Connect("nats://localhost:4222")
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to NATS server: %v", err)
@@ -36,9 +35,10 @@ func GetPrivateSubject(user1ID, user2ID int) string {
 	return fmt.Sprintf("chat.private.%d.%d", user2ID, user1ID)
 }
 
+// SubscribeToPrivateMessages subscribes to private messages for a user
 func (s *NatsService) SubscribeToPrivateMessages(userID int, callback func(*domain.Message)) error {
-	subject := fmt.Sprintf("private.%d", userID)
-
+	// Subscribe to all conversations where this user is involved
+	subject := fmt.Sprintf("chat.private.*.%d", userID)
 	_, err := s.nc.Subscribe(subject, func(msg *nats.Msg) {
 		var message domain.Message
 		if err := json.Unmarshal(msg.Data, &message); err != nil {
@@ -48,24 +48,58 @@ func (s *NatsService) SubscribeToPrivateMessages(userID int, callback func(*doma
 		callback(&message)
 	})
 	if err != nil {
-		return fmt.Errorf("failed to subscribe: %v", err)
+		return fmt.Errorf("failed to subscribe to incoming messages: %w", err)
 	}
 
+	// Also subscribe to conversations where user is the second ID
+	subject = fmt.Sprintf("chat.private.%d.*", userID)
+	_, err = s.nc.Subscribe(subject, func(msg *nats.Msg) {
+		var message domain.Message
+		if err := json.Unmarshal(msg.Data, &message); err != nil {
+			log.Printf("Error unmarshaling message: %v", err)
+			return
+		}
+		callback(&message)
+	})
+	if err != nil {
+		return fmt.Errorf("failed to subscribe to outgoing messages: %w", err)
+	}
+
+	log.Printf("Subscribed to all messages for user %d", userID)
 	return nil
 }
 
+// SendPrivateMessage sends a message using the unique conversation subject
 func (s *NatsService) SendPrivateMessage(message *domain.Message) error {
 	data, err := json.Marshal(message)
 	if err != nil {
 		return fmt.Errorf("failed to marshal message: %v", err)
 	}
 
-	subject := fmt.Sprintf("private.%d", message.ReceiverID)
+	// Get the unique conversation subject
+	subject := GetPrivateSubject(message.SenderID, message.ReceiverID)
+	log.Printf("Publishing message to subject: %s", subject)
 
 	if err := s.nc.Publish(subject, data); err != nil {
-		return fmt.Errorf("failed to publish message: %v", err)
+		return fmt.Errorf("failed to publish message: %w", err)
 	}
 
+	return nil
+}
+
+// SubscribeToSubject subscribes to a specific NATS subject
+func (s *NatsService) SubscribeToSubject(subject string, callback func(*domain.Message)) error {
+	_, err := s.nc.Subscribe(subject, func(msg *nats.Msg) {
+		var message domain.Message
+		if err := json.Unmarshal(msg.Data, &message); err != nil {
+			log.Printf("Error unmarshaling message: %v", err)
+			return
+		}
+		callback(&message)
+	})
+	if err != nil {
+		return fmt.Errorf("failed to subscribe to %s: %w", subject, err)
+	}
 	return nil
 }
 
