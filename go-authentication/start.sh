@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # Create .env file with environment variables
-cat > /root/.env << EOF
+cat > .env << EOF
 # Server Config
 PORT=8081
 

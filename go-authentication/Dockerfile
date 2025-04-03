@@ -30,9 +30,9 @@ COPY --from=builder /app/main .
 # Copy any necessary config files
 COPY --from=builder /app/config ./config
 
-# Copy the start script
-COPY start.sh /root/start.sh
-RUN chmod +x /root/start.sh
+# Copy the start script and make it executable
+COPY start.sh .
+RUN chmod +x start.sh
 
 # Expose port (using the port from .env)
 EXPOSE 8081
@@ -42,4 +42,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8081/health || exit 1
 
 # Command to run the application
-CMD ["/root/start.sh"]
+CMD ["./start.sh"]
