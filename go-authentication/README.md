@@ -237,3 +237,27 @@ The application logs:
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
+
+## cmd
+
+.\build.bat build
+Builds your Go application
+Creates an executable named go-authentication
+
+.\build.bat run
+Runs your application locally
+Executes the main.go file directly
+
+.\build.bat docker-up
+Starts all Docker containers defined in your docker-compose.yml
+Runs them in detached mode (-d flag)
+
+.\build.bat docker-down
+Stops and removes all Docker containers
+Cleans up the Docker environment
+
+.\build.bat docker-restart
+Stops all containers
+Rebuilds the images
+Starts the containers again
+Useful when you've made changes to your code
