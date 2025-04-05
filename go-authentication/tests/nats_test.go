@@ -3,7 +3,7 @@ package tests
 import (
 	"encoding/json"
 	"go-authentication/internal/domain"
-	"go-authentication/services"
+	"go-authentication/internal/services"
 	"log"
 	"os"
 	"testing"
