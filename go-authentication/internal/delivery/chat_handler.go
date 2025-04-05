@@ -79,19 +79,17 @@ func (h *ChatHandler) GetConversationMessagesHandler(c *gin.Context) {
 	}
 
 	// Convert userID to int (might be float64 from JWT claims)
-	var userID int
+	var currentUserID int
 	switch v := userIDValue.(type) {
 	case int:
-		userID = v
+		currentUserID = v
 	case float64:
-		userID = int(v)
+		currentUserID = int(v)
 	default:
 		log.Printf("Invalid user ID type: %T", v)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid user ID type"})
 		return
 	}
-
-	log.Printf("Getting messages for user %d", userID)
 
 	// Get other user's ID from URL parameter
 	otherUserIDStr := c.Param("user_id")
@@ -102,7 +100,14 @@ func (h *ChatHandler) GetConversationMessagesHandler(c *gin.Context) {
 		return
 	}
 
-	log.Printf("Getting messages between users %d and %d", userID, otherUserID)
+	// Ensure we're not trying to get messages with ourselves
+	if currentUserID == otherUserID {
+		log.Printf("Cannot get messages with self: user_id=%d", currentUserID)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "cannot get messages with yourself"})
+		return
+	}
+
+	log.Printf("Getting messages between current user %d and other user %d", currentUserID, otherUserID)
 
 	// Parse query parameters
 	limitStr := c.DefaultQuery("limit", "20")
@@ -121,7 +126,7 @@ func (h *ChatHandler) GetConversationMessagesHandler(c *gin.Context) {
 	// Get messages from database
 	messages, err := h.ChatUsecase.GetConversationMessages(
 		context.Background(),
-		userID,
+		currentUserID,
 		otherUserID,
 		limit,
 		offset,
@@ -133,49 +138,12 @@ func (h *ChatHandler) GetConversationMessagesHandler(c *gin.Context) {
 		return
 	}
 
+	// Add is_sent flag to each message
+	for i := range messages {
+		messages[i].IsSent = messages[i].SenderID == currentUserID
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"data": messages,
-	})
-}
-
-// GetUserConversationsHandler handles retrieving all conversations for a user
-func (h *ChatHandler) GetUserConversationsHandler(c *gin.Context) {
-	// Get user ID from token
-	userIDValue, exists := c.Get("user_id")
-	if !exists {
-		log.Printf("User ID not found in context")
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-		return
-	}
-
-	// Convert userID to int (might be float64 from JWT claims)
-	var userID int
-	switch v := userIDValue.(type) {
-	case int:
-		userID = v
-	case float64:
-		userID = int(v)
-	default:
-		log.Printf("Invalid user ID type: %T", v)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid user ID type"})
-		return
-	}
-
-	log.Printf("Getting conversations for user %d", userID)
-
-	// Get conversations from database
-	conversations, err := h.ChatUsecase.GetUserConversations(
-		context.Background(),
-		userID,
-	)
-
-	if err != nil {
-		log.Printf("Error getting conversations: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"data": conversations,
 	})
 }

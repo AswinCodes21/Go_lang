@@ -7,6 +7,8 @@ import (
 	"go-authentication/internal/usecase"
 	"testing"
 	"time"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 // Mock user repository for testing
@@ -110,6 +112,13 @@ func TestSignup(t *testing.T) {
 }
 
 func TestLogin(t *testing.T) {
+	// Hash the test password
+	testPassword := "password123456"
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(testPassword), bcrypt.DefaultCost)
+	if err != nil {
+		t.Fatalf("Failed to hash password: %v", err)
+	}
+
 	// Initialize mock repository with a test user
 	repo := &mockAuthUserRepo{
 		users: map[int]*domain.User{
@@ -117,7 +126,7 @@ func TestLogin(t *testing.T) {
 				ID:        1,
 				Name:      "Test User",
 				Email:     "test@example.com",
-				Password:  "$2a$10$abcdefghijklmnopqrstuvwxyz1234567890", // This is a dummy hash
+				Password:  string(hashedPassword),
 				CreatedAt: time.Now(),
 			},
 		},
@@ -133,19 +142,19 @@ func TestLogin(t *testing.T) {
 		{
 			name:     "Valid login",
 			email:    "test@example.com",
-			password: "password123456",
+			password: testPassword,
 			wantErr:  false,
 		},
 		{
 			name:     "Invalid email",
 			email:    "nonexistent@example.com",
-			password: "password123456",
+			password: testPassword,
 			wantErr:  true,
 		},
 		{
 			name:     "Empty email",
 			email:    "",
-			password: "password123456",
+			password: testPassword,
 			wantErr:  true,
 		},
 		{

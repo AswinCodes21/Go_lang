@@ -8,6 +8,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
 )
 
 type AuthHandler struct {
@@ -23,7 +24,28 @@ func (h *AuthHandler) SignupHandler(c *gin.Context) {
 	var user domain.User
 
 	if err := c.ShouldBindJSON(&user); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input", "details": err.Error()})
+		// Handle validation errors
+		if validationErr, ok := err.(validator.ValidationErrors); ok {
+			errors := make(map[string]string)
+			for _, fieldErr := range validationErr {
+				switch fieldErr.Tag() {
+				case "required":
+					errors[fieldErr.Field()] = fmt.Sprintf("%s is required", fieldErr.Field())
+				case "email":
+					errors[fieldErr.Field()] = "Please provide a valid email address"
+				case "min":
+					errors[fieldErr.Field()] = "Password must be at least 10 characters long"
+				default:
+					errors[fieldErr.Field()] = fmt.Sprintf("Invalid %s", fieldErr.Field())
+				}
+			}
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error":   "Validation failed",
+				"details": errors,
+			})
+			return
+		}
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input format"})
 		return
 	}
 

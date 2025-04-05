@@ -9,27 +9,22 @@ import (
 
 // SetupRoutes defines API routes
 func SetupRoutes(router *gin.Engine, authHandler *delivery.AuthHandler, chatHandler *delivery.ChatHandler, wsHandler *delivery.WebSocketHandler, messageHandler *handlers.MessageHandler) {
-	// Public Routes
+	// Public routes
 	router.POST("/signup", authHandler.SignupHandler)
 	router.POST("/login", authHandler.LoginHandler)
 
-	// test Routes
-	router.GET("/testuser", delivery.AuthMiddleware(), authHandler.ProtectedHandler)
-
-	// Chat Routes - All require authentication
-	chat := router.Group("/chat")
-	chat.Use(delivery.AuthMiddleware())
+	// Protected routes
+	auth := router.Group("/")
+	auth.Use(delivery.AuthMiddleware())
 	{
-		// Send a message
-		chat.POST("/send", messageHandler.SendMessage)
+		// Chat routes
+		chat := auth.Group("/chat")
+		{
+			chat.POST("/send", chatHandler.SendMessageHandler)
+			chat.GET("/messages/:user_id", chatHandler.GetConversationMessagesHandler)
+		}
 
-		// Get messages from a conversation with a specific user
-		chat.GET("/messages/:user_id", chatHandler.GetConversationMessagesHandler)
-
-		// Get all user's conversations
-		chat.GET("/conversations", chatHandler.GetUserConversationsHandler)
-
-		// WebSocket endpoint for real-time chat
-		chat.GET("/ws", wsHandler.HandleWebSocket)
+		// WebSocket route
+		auth.GET("/ws", wsHandler.HandleWebSocket)
 	}
 }

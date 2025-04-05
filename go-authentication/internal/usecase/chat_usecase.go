@@ -147,16 +147,6 @@ func (uc *ChatUsecase) GetConversationMessages(ctx context.Context, user1ID int,
 	return messages, nil
 }
 
-// GetUserConversations retrieves all conversations for a user
-func (uc *ChatUsecase) GetUserConversations(ctx context.Context, userID int) ([]*domain.Conversation, error) {
-	conversations, err := uc.ChatRepo.GetConvoByUserId(ctx, userID)
-	if err != nil {
-		return nil, err
-	}
-
-	return conversations, nil
-}
-
 // GetMessages retrieves messages between two users with pagination
 func (uc *ChatUsecase) GetMessages(ctx context.Context, user1ID, user2ID int, limit, offset int) ([]*domain.Message, error) {
 	log.Printf("Getting messages between users %d and %d (limit: %d, offset: %d)",

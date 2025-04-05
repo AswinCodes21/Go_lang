@@ -14,7 +14,6 @@ type ChatRepository interface {
 	StoresMsg(ctx context.Context, message *domain.Message) error
 	GetMsgbyConvo(ctx context.Context, user1ID, user2ID int, limit, offset int) ([]*domain.Message, error)
 	GetOrCreateConversation(ctx context.Context, user1ID, user2ID int) (*domain.Conversation, error)
-	GetConvoByUserId(ctx context.Context, userID int) ([]*domain.Conversation, error)
 	UpdateConvo(ctx context.Context, conversationID int, lastMessage string) error
 }
 
@@ -197,43 +196,6 @@ func (r *chatRepository) GetOrCreateConversation(ctx context.Context, user1ID, u
 	return conversation, nil
 }
 
-func (r *chatRepository) GetConvoByUserId(ctx context.Context, userID int) ([]*domain.Conversation, error) {
-	query := `
-		SELECT id, user1_id, user2_id, last_message, updated_at
-		FROM conversations
-		WHERE user1_id = $1 OR user2_id = $1
-		ORDER BY updated_at DESC
-	`
-
-	rows, err := db.DB.Query(ctx, query, userID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get conversations by user ID: %w", err)
-	}
-	defer rows.Close()
-
-	conversations := []*domain.Conversation{}
-	for rows.Next() {
-		conv := &domain.Conversation{}
-		err := rows.Scan(
-			&conv.ID,
-			&conv.User1ID,
-			&conv.User2ID,
-			&conv.LastMessage,
-			&conv.UpdatedAt,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("failed to scan conversation: %w", err)
-		}
-		conversations = append(conversations, conv)
-	}
-
-	if err = rows.Err(); err != nil {
-		return nil, fmt.Errorf("error occurred while iterating over conversations: %w", err)
-	}
-
-	return conversations, nil
-}
-
 func (r *chatRepository) UpdateConvo(ctx context.Context, conversationID int, lastMessage string) error {
 	query := `
 		UPDATE conversations
@@ -241,9 +203,13 @@ func (r *chatRepository) UpdateConvo(ctx context.Context, conversationID int, la
 		WHERE id = $3
 	`
 
-	_, err := db.DB.Exec(ctx, query, lastMessage, time.Now(), conversationID)
+	now := time.Now()
+	_, err := db.DB.Exec(ctx, query, lastMessage, now, conversationID)
 	if err != nil {
+		log.Printf("Error updating conversation: %v", err)
 		return fmt.Errorf("failed to update conversation: %w", err)
 	}
+
+	log.Printf("Updated conversation %d with last message: %s", conversationID, lastMessage)
 	return nil
 }
