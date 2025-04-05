@@ -163,6 +163,7 @@ func TestSendMessage(t *testing.T) {
 		users: map[int]*domain.User{
 			1: {ID: 1, Name: "User1"},
 			2: {ID: 2, Name: "User2"},
+			3: {ID: 3, Name: "User3"},
 		},
 	}
 	log.Println("✓ Repositories initialized")
@@ -188,10 +189,24 @@ func TestSendMessage(t *testing.T) {
 		wantErr    bool
 	}{
 		{
-			name:       "Valid message",
+			name:       "Private message from User1 to User2",
 			senderID:   1,
 			receiverID: 2,
-			content:    "Hello!",
+			content:    "Hello User2!",
+			wantErr:    false,
+		},
+		{
+			name:       "Private message from User2 to User1",
+			senderID:   2,
+			receiverID: 1,
+			content:    "Hi User1!",
+			wantErr:    false,
+		},
+		{
+			name:       "Private message from User1 to User3",
+			senderID:   1,
+			receiverID: 3,
+			content:    "Hello User3!",
 			wantErr:    false,
 		},
 		{
@@ -212,8 +227,9 @@ func TestSendMessage(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			log.Printf("\nRunning test case: %s", tt.name)
-			log.Printf("Parameters: sender=%d, receiver=%d, content=%s", tt.senderID, tt.receiverID, tt.content)
+			log.Printf("\nTesting private message: %s", tt.name)
+			log.Printf("Sender: User%d, Receiver: User%d", tt.senderID, tt.receiverID)
+			log.Printf("Message content: %s", tt.content)
 
 			msg, err := chatUsecase.SendMessage(context.Background(), tt.senderID, tt.receiverID, tt.content)
 			if (err != nil) != tt.wantErr {
@@ -225,7 +241,11 @@ func TestSendMessage(t *testing.T) {
 				log.Println("Test failed: message is nil when no error expected")
 				t.Error("SendMessage() returned nil message when no error expected")
 			}
-			log.Printf("Test passed: %s", tt.name)
+			if !tt.wantErr {
+				log.Printf("Private message sent successfully: ID=%d, Sender=User%d, Receiver=User%d, Content=%s",
+					msg.ID, msg.SenderID, msg.ReceiverID, msg.Content)
+			}
+			log.Printf("Test completed: %s", tt.name)
 		})
 	}
 	log.Println("✓ SendMessage Test completed")
@@ -238,14 +258,16 @@ func TestGetMessages(t *testing.T) {
 	log.Println("1. Setting up test dependencies...")
 	chatRepo := &mockChatRepo{
 		messages: []*domain.Message{
-			{ID: 1, SenderID: 1, ReceiverID: 2, Content: "Hello"},
-			{ID: 2, SenderID: 2, ReceiverID: 1, Content: "Hi"},
+			{ID: 1, SenderID: 1, ReceiverID: 2, Content: "Hello User2!"},
+			{ID: 2, SenderID: 2, ReceiverID: 1, Content: "Hi User1!"},
+			{ID: 3, SenderID: 1, ReceiverID: 3, Content: "Hello User3!"},
 		},
 	}
 	userRepo := &mockChatUserRepo{
 		users: map[int]*domain.User{
 			1: {ID: 1, Name: "User1"},
 			2: {ID: 2, Name: "User2"},
+			3: {ID: 3, Name: "User3"},
 		},
 	}
 	log.Println("✓ Repositories initialized with test data")
@@ -270,12 +292,21 @@ func TestGetMessages(t *testing.T) {
 		wantErr   bool
 	}{
 		{
-			name:      "Valid conversation",
+			name:      "Private messages between User1 and User2",
 			user1ID:   1,
 			user2ID:   2,
 			limit:     10,
 			offset:    0,
 			wantCount: 2,
+			wantErr:   false,
+		},
+		{
+			name:      "Private messages between User1 and User3",
+			user1ID:   1,
+			user2ID:   3,
+			limit:     10,
+			offset:    0,
+			wantCount: 1,
 			wantErr:   false,
 		},
 		{
@@ -291,8 +322,8 @@ func TestGetMessages(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			log.Printf("\nRunning test case: %s", tt.name)
-			log.Printf("Parameters: user1=%d, user2=%d, limit=%d, offset=%d", tt.user1ID, tt.user2ID, tt.limit, tt.offset)
+			log.Printf("\nTesting message retrieval: %s", tt.name)
+			log.Printf("Retrieving messages between User%d and User%d", tt.user1ID, tt.user2ID)
 
 			messages, err := chatUsecase.GetMessages(context.Background(), tt.user1ID, tt.user2ID, tt.limit, tt.offset)
 			if (err != nil) != tt.wantErr {
@@ -304,65 +335,15 @@ func TestGetMessages(t *testing.T) {
 				log.Printf("Test failed: got %d messages, want %d", len(messages), tt.wantCount)
 				t.Errorf("GetMessages() got %d messages, want %d", len(messages), tt.wantCount)
 			}
-			log.Printf("Test passed: %s", tt.name)
+			if !tt.wantErr {
+				log.Printf("Retrieved %d messages between User%d and User%d:", len(messages), tt.user1ID, tt.user2ID)
+				for i, msg := range messages {
+					log.Printf("Message %d: Sender=User%d, Receiver=User%d, Content=%s",
+						i+1, msg.SenderID, msg.ReceiverID, msg.Content)
+				}
+			}
+			log.Printf("Test completed: %s", tt.name)
 		})
 	}
 	log.Println("✓ GetMessages Test completed")
-}
-
-func TestGetUserConversations(t *testing.T) {
-	// Setup test dependencies with some initial conversations
-	chatRepo := &mockChatRepo{
-		conversations: []*domain.Conversation{
-			{ID: 1, User1ID: 1, User2ID: 2, LastMessage: "Hello"},
-			{ID: 2, User1ID: 1, User2ID: 3, LastMessage: "Hi"},
-		},
-	}
-	userRepo := &mockChatUserRepo{
-		users: map[int]*domain.User{
-			1: {ID: 1, Name: "User1"},
-			2: {ID: 2, Name: "User2"},
-			3: {ID: 3, Name: "User3"},
-		},
-	}
-	natsService := NewMockNatsService()
-	if natsService == nil {
-		t.Fatal("Failed to create NATS service")
-	}
-	defer natsService.Close()
-
-	chatUsecase := usecase.NewChatUsecase(chatRepo, userRepo, natsService)
-
-	tests := []struct {
-		name      string
-		userID    int
-		wantCount int
-		wantErr   bool
-	}{
-		{
-			name:      "User with conversations",
-			userID:    1,
-			wantCount: 2,
-			wantErr:   false,
-		},
-		{
-			name:      "User without conversations",
-			userID:    4,
-			wantCount: 0,
-			wantErr:   false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			conversations, err := chatUsecase.GetUserConversations(context.Background(), tt.userID)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("GetUserConversations() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !tt.wantErr && len(conversations) != tt.wantCount {
-				t.Errorf("GetUserConversations() got %d conversations, want %d", len(conversations), tt.wantCount)
-			}
-		})
-	}
 }

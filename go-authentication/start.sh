@@ -1,43 +1,51 @@
-#!/bin/sh
+#!/bin/bash
 
-# Create .env file with environment variables
-cat > .env << EOF
-# Server Config
+# Create .env file
+cat > .env << EOL
 PORT=8081
-
-# DB Config 
+NATS_URL=nats://nats:4222
 DB_HOST=postgres
-DB_PORT=5432
 DB_USER=postgres
 DB_PASSWORD=admin@123
-DB_NAME=golang_project 
+DB_NAME=golang_project
+DB_PORT=5432
 DB_SSLMODE=disable
-
-# JWT Secret Key
 JWT_SECRET=UlVwZFpYbGlzN2N3djd4b2lLMjV6OVF0QzM3TkFqQkY=
 JWT_EXPIRATION_HOURS=24
+EOL
 
-# NATS Config
-NATS_URL=nats://nats:4222
-EOF
+# Function to check if NATS is ready
+check_nats_ready() {
+    local max_retries=30
+    local retry_count=0
+    
+    echo "Waiting for NATS server to be ready..."
+    
+    while [ $retry_count -lt $max_retries ]; do
+        # Check if the port is open
+        if nc -z nats 4222; then
+            echo "NATS server is ready!"
+            return 0
+        fi
+        
+        echo "NATS server not ready yet (attempt $((retry_count + 1))/$max_retries)..."
+        retry_count=$((retry_count + 1))
+        sleep 2
+    done
+    
+    echo "Error: NATS server did not become ready in time"
+    return 1
+}
 
 # Wait for NATS to be ready
-echo "Waiting for NATS server to be ready..."
-max_retries=30
-retry_count=0
-while [ $retry_count -lt $max_retries ]; do
-  if wget --no-verbose --tries=1 --spider http://nats:8222/healthz; then
-    echo "NATS server is ready!"
-    break
-  fi
-  echo "NATS server not ready yet, waiting... ($(($retry_count + 1))/$max_retries)"
-  retry_count=$((retry_count + 1))
-  sleep 2
-done
-
-if [ $retry_count -eq $max_retries ]; then
-  echo "NATS server did not become ready in time, but continuing anyway..."
+if ! check_nats_ready; then
+    echo "Failed to connect to NATS server. Exiting..."
+    exit 1
 fi
 
-# Run the main application
-exec ./main 
+# Add a small delay to ensure NATS is fully ready
+sleep 5
+
+# Start the application
+echo "Starting application..."
+./main 

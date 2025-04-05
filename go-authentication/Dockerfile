@@ -19,10 +19,10 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o main ./cmd
 # Final stage
 FROM alpine:latest
 
-# Install necessary certificates, curl, and wget for healthcheck
-RUN apk --no-cache add ca-certificates curl wget dos2unix
+# Install necessary certificates, curl, wget, and netcat for healthcheck
+RUN apk --no-cache add ca-certificates curl wget dos2unix netcat-openbsd
 
-WORKDIR /root/
+WORKDIR /app
 
 # Copy the binary from builder
 COPY --from=builder /app/main .
@@ -30,8 +30,9 @@ COPY --from=builder /app/main .
 # Copy any necessary config files
 COPY --from=builder /app/config ./config
 
-# Copy the start script and make it executable
-COPY start.sh .
+# Copy the start script
+COPY --from=builder /app/start.sh .
+
 # Convert Windows line endings to Unix and make executable
 RUN dos2unix start.sh && chmod +x start.sh
 
@@ -43,4 +44,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8081/health || exit 1
 
 # Command to run the application
-CMD ["./start.sh"]
+CMD ["sh", "./start.sh"]

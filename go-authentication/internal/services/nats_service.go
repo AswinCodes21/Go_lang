@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
+	"time"
 
 	"go-authentication/internal/domain"
 
@@ -21,10 +23,31 @@ func NewNatsService() (*NatsService, error) {
 		return natsService, nil
 	}
 
-	// Connect to NATS server
-	nc, err := nats.Connect(nats.DefaultURL)
+	// Get NATS URL from environment variable
+	natsURL := os.Getenv("NATS_URL")
+	if natsURL == "" {
+		natsURL = "nats://nats:4222" // Default to Docker service name
+	}
+
+	// Connect to NATS server with retry logic
+	var nc *nats.Conn
+	var err error
+	maxRetries := 5
+	retryDelay := 2 * time.Second
+
+	for i := 0; i < maxRetries; i++ {
+		nc, err = nats.Connect(natsURL)
+		if err == nil {
+			break
+		}
+		log.Printf("Failed to connect to NATS (attempt %d/%d): %v", i+1, maxRetries, err)
+		if i < maxRetries-1 {
+			time.Sleep(retryDelay)
+		}
+	}
+
 	if err != nil {
-		return nil, fmt.Errorf("error connecting to NATS: %v", err)
+		return nil, fmt.Errorf("error connecting to NATS after %d attempts: %v", maxRetries, err)
 	}
 
 	natsService = &NatsService{
