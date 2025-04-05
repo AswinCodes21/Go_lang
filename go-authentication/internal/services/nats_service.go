@@ -69,9 +69,22 @@ func (s *NatsService) SendPrivateMessage(message *domain.Message) error {
 	return s.nc.Publish(subject, data)
 }
 
+// SubscribeToSubject subscribes to a specific NATS subject
+func (s *NatsService) SubscribeToSubject(subject string, callback func(*domain.Message)) error {
+	_, err := s.nc.Subscribe(subject, func(msg *nats.Msg) {
+		var message domain.Message
+		if err := json.Unmarshal(msg.Data, &message); err != nil {
+			log.Printf("Error unmarshaling message: %v", err)
+			return
+		}
+		callback(&message)
+	})
+	return err
+}
+
 // Close closes the NATS connection
 func (s *NatsService) Close() {
 	if s.nc != nil {
 		s.nc.Close()
 	}
-} 
+}

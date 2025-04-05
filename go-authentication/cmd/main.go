@@ -7,8 +7,8 @@ import (
 	"go-authentication/internal/delivery"
 	"go-authentication/internal/repository"
 	"go-authentication/internal/routes"
+	"go-authentication/internal/services"
 	"go-authentication/internal/usecase"
-	"go-authentication/services"
 	"log"
 
 	"github.com/gin-gonic/gin"

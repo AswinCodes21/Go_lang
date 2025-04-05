@@ -5,8 +5,8 @@ import (
 	"strconv"
 
 	"go-authentication/internal/delivery"
+	"go-authentication/internal/services"
 	"go-authentication/internal/usecase"
-	"go-authentication/services"
 
 	"log"
 

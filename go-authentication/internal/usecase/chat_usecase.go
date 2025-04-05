@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"go-authentication/internal/domain"
 	"go-authentication/internal/repository"
-	"go-authentication/services"
+	"go-authentication/internal/services"
 	"log"
 )
 
@@ -98,7 +98,7 @@ func (uc *ChatUsecase) SendMessage(ctx context.Context, senderID int, receiverID
 	return message, nil
 }
 
-// SubscribeToMessages sets up a subscription for real-time messages
+// SubscribeToMessages subscribes to messages for a user
 func (uc *ChatUsecase) SubscribeToMessages(userID int, callback func(*domain.Message)) error {
 	return uc.NatsService.SubscribeToPrivateMessages(userID, callback)
 }
