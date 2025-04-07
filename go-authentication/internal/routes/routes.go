@@ -2,13 +2,14 @@ package routes
 
 import (
 	"go-authentication/handlers"
+	"go-authentication/internal/constants"
 	"go-authentication/internal/delivery"
 
 	"github.com/gin-gonic/gin"
 )
 
 // SetupRoutes defines API routes
-func SetupRoutes(router *gin.Engine, authHandler *delivery.AuthHandler, chatHandler *delivery.ChatHandler, wsHandler *delivery.WebSocketHandler, messageHandler *handlers.MessageHandler, snmpHandler *delivery.SNMPHandler) {
+func SetupRoutes(router *gin.Engine, authHandler *delivery.AuthHandler, chatHandler *delivery.ChatHandler, wsHandler *delivery.WebSocketHandler, messageHandler *handlers.MessageHandler, iec104Handler *delivery.IEC104Handler) {
 	// Public routes
 	router.POST("/signup", authHandler.SignupHandler)
 	router.POST("/login", authHandler.LoginHandler)
@@ -27,12 +28,14 @@ func SetupRoutes(router *gin.Engine, authHandler *delivery.AuthHandler, chatHand
 		// WebSocket route
 		auth.GET("/ws", wsHandler.HandleWebSocket)
 
-		// SNMP routes
-		snmp := auth.Group("/snmp")
+		// IEC104 routes
+		iec104 := auth.Group(constants.IEC104BasePath)
 		{
-			snmp.GET("/devices", snmpHandler.GetDevices)
-			snmp.GET("/device/:id", snmpHandler.GetDeviceData)
-			snmp.GET("/health", snmpHandler.HealthCheck)
+			iec104.GET(constants.IEC104DevicesPath, iec104Handler.GetDevices)
+			iec104.GET(constants.IEC104DevicePath+constants.IEC104StatusPath, iec104Handler.GetDeviceStatus)
+			iec104.GET(constants.IEC104DevicePath+constants.IEC104DataPath, iec104Handler.GetLatestData)
+			iec104.POST(constants.IEC104DevicePath+constants.IEC104ConnectPath, iec104Handler.ConnectToDevice)
+			iec104.POST(constants.IEC104DevicePath+constants.IEC104DisconnectPath, iec104Handler.DisconnectFromDevice)
 		}
 	}
 }
