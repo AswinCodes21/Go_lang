@@ -8,7 +8,7 @@ import (
 )
 
 // SetupRoutes defines API routes
-func SetupRoutes(router *gin.Engine, authHandler *delivery.AuthHandler, chatHandler *delivery.ChatHandler, wsHandler *delivery.WebSocketHandler, messageHandler *handlers.MessageHandler) {
+func SetupRoutes(router *gin.Engine, authHandler *delivery.AuthHandler, chatHandler *delivery.ChatHandler, wsHandler *delivery.WebSocketHandler, messageHandler *handlers.MessageHandler, snmpHandler *delivery.SNMPHandler) {
 	// Public routes
 	router.POST("/signup", authHandler.SignupHandler)
 	router.POST("/login", authHandler.LoginHandler)
@@ -26,5 +26,13 @@ func SetupRoutes(router *gin.Engine, authHandler *delivery.AuthHandler, chatHand
 
 		// WebSocket route
 		auth.GET("/ws", wsHandler.HandleWebSocket)
+
+		// SNMP routes
+		snmp := auth.Group("/snmp")
+		{
+			snmp.GET("/devices", snmpHandler.GetDevices)
+			snmp.GET("/device/:id", snmpHandler.GetDeviceData)
+			snmp.GET("/health", snmpHandler.HealthCheck)
+		}
 	}
 }

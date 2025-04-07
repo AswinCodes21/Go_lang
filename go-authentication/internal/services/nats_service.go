@@ -12,6 +12,12 @@ import (
 	"github.com/nats-io/nats.go"
 )
 
+// NatsServiceInterface defines the methods that a NATS service should implement
+type NatsServiceInterface interface {
+	Publish(subject string, data []byte) error
+	Close()
+}
+
 type NatsService struct {
 	nc *nats.Conn
 }
@@ -26,7 +32,7 @@ func NewNatsService() (*NatsService, error) {
 	// Get NATS URL from environment variable
 	natsURL := os.Getenv("NATS_URL")
 	if natsURL == "" {
-		natsURL = "nats://nats:4222" // Default to Docker service name
+		natsURL = "nats://localhost:4222" // Default to localhost for local development
 	}
 
 	// Connect to NATS server with retry logic
@@ -55,6 +61,29 @@ func NewNatsService() (*NatsService, error) {
 	}
 
 	return natsService, nil
+}
+
+func NewNatsServiceWithURL(url string) (*NatsService, error) {
+	service := &NatsService{}
+
+	// Try to connect to NATS with retries
+	var err error
+	for i := 1; i <= 5; i++ {
+		service.nc, err = nats.Connect(url)
+		if err == nil {
+			break
+		}
+		log.Printf("Failed to connect to NATS (attempt %d/5): %v", i, err)
+		if i < 5 {
+			time.Sleep(5 * time.Second)
+		}
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("error connecting to NATS after 5 attempts: %v", err)
+	}
+
+	return service, nil
 }
 
 // GetPrivateSubject creates a unique subject for private messaging between two users
@@ -103,6 +132,11 @@ func (s *NatsService) SubscribeToSubject(subject string, callback func(*domain.M
 		callback(&message)
 	})
 	return err
+}
+
+// Publish implements the NatsServiceInterface
+func (s *NatsService) Publish(subject string, data []byte) error {
+	return s.nc.Publish(subject, data)
 }
 
 // Close closes the NATS connection
