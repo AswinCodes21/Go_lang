@@ -21,13 +21,6 @@ services:
         condition: service_healthy
       nats:
         condition: service_healthy
-    restart: unless-stopped
-    healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8081/health" ]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
     networks:
       - app-network
 
@@ -41,30 +34,14 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    restart: unless-stopped
-    healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
     networks:
       - app-network
 
   nats:
     image: nats:2.9.15-alpine
-    hostname: nats
     ports:
-      - "4222:4222" # Client connections
-      - "8222:8222" # HTTP monitoring
-    command: "-js -m 8222" # Enable JetStream and monitoring
-    restart: unless-stopped
-    healthcheck:
-      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8222/healthz" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
+      - "4222:4222"
+    command: "-js"
     networks:
       - app-network
 

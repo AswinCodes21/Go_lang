@@ -1,0 +1,12 @@
+FROM alpine:latest
+
+RUN apk add --no-cache net-snmp net-snmp-tools
+
+# Create SNMP configuration
+RUN echo "rocommunity public" > /etc/snmp/snmpd.conf
+
+# Expose SNMP port
+EXPOSE 161/udp
+
+# Start SNMP daemon
+CMD ["snmpd", "-f", "-Lo"] 

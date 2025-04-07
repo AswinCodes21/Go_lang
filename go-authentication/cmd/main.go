@@ -8,6 +8,7 @@ import (
 	"go-authentication/internal/repository"
 	"go-authentication/internal/routes"
 	"go-authentication/internal/services"
+	"go-authentication/internal/snmp"
 	"go-authentication/internal/usecase"
 	"log"
 
@@ -35,6 +36,17 @@ func main() {
 	}
 	defer natsService.Close()
 
+	// Initialize SNMP
+	snmpConfig := snmp.LoadConfig()
+	snmpSimulator := snmp.NewSNMPSimulator(snmpConfig)
+	if err := snmpSimulator.Start(); err != nil {
+		log.Fatalf("Failed to start SNMP simulator: %v", err)
+	}
+
+	// Initialize SNMP service
+	snmpService := services.NewSNMPService(snmpSimulator, natsService)
+	snmpService.StartPublishing()
+
 	// Initialize repositories
 	userRepository := repository.NewUserRepository()
 	chatRepository := repository.NewChatRepository()
@@ -48,6 +60,7 @@ func main() {
 	chatHandler := delivery.NewChatHandler(chatUsecase)
 	wsHandler := delivery.NewWebSocketHandler(chatUsecase)
 	messageHandler := handlers.NewMessageHandler(natsService, chatUsecase)
+	snmpHandler := delivery.NewSNMPHandler(snmpService)
 
 	// Initialize and configure router
 	router := gin.Default()
@@ -56,7 +69,7 @@ func main() {
 	// router.Use(someMiddleware())
 
 	// Register routes
-	routes.SetupRoutes(router, authHandler, chatHandler, wsHandler, messageHandler)
+	routes.SetupRoutes(router, authHandler, chatHandler, wsHandler, messageHandler, snmpHandler)
 
 	// Start the server
 	port := cfg.Port
