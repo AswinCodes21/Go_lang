@@ -3,36 +3,28 @@ FROM golang:1.24-alpine AS builder
 
 WORKDIR /app
 
+# Copy go mod and sum files
 COPY go.mod go.sum ./
+
+# Download dependencies
 RUN go mod download
 
+# Copy source code
 COPY . .
 
-RUN CGO_ENABLED=0 GOOS=linux go build -o main ./cmd
+# Build the application
+RUN CGO_ENABLED=0 GOOS=linux go build -o main ./cmd/main.go
 
 # Final stage
 FROM alpine:latest
 
-RUN apk --no-cache add \
-    ca-certificates \
-    curl \
-    netcat-openbsd \
-    procps
-
 WORKDIR /app
 
+# Copy the binary from builder
 COPY --from=builder /app/main .
-COPY --from=builder /app/start.sh .
 
-# Create necessary directories
-RUN mkdir -p /var/log
+# Expose port
+EXPOSE 8080
 
-RUN chmod +x start.sh
-
-EXPOSE 8081
-EXPOSE 104/udp
-
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8081/health || exit 1
-
-CMD ["sh", "./start.sh"]
+# Run the application
+CMD ["./main"]
