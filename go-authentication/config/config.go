@@ -17,6 +17,10 @@ type Config struct {
 	DBSSLMode     string
 	JWTSecret     string
 	JWTExpiration string
+	IEC104Port    string
+	IEC104Timeout string
+	IEC104K       string
+	IEC104W       string
 }
 
 func LoadEnv() {
@@ -47,5 +51,9 @@ func LoadConfig() *Config {
 		DBSSLMode:     Getenv("DB_SSLMODE", "disable"),
 		JWTSecret:     Getenv("JWT_SECRET", "UlVwZFpYbGlzN2N3djd4b2lLMjV6OVF0QzM3TkFqQkY="),
 		JWTExpiration: Getenv("JWT_EXPIRATION_HOURS", "24"),
+		IEC104Port:    Getenv("IEC104_PORT", "2404"),
+		IEC104Timeout: Getenv("IEC104_TIMEOUT", "30"),
+		IEC104K:       Getenv("IEC104_K", "12"),
+		IEC104W:       Getenv("IEC104_W", "8"),
 	}
 }

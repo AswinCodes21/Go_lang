@@ -8,9 +8,9 @@ import (
 	"go-authentication/internal/repository"
 	"go-authentication/internal/routes"
 	"go-authentication/internal/services"
-	"go-authentication/internal/snmp"
 	"go-authentication/internal/usecase"
 	"log"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -36,16 +36,16 @@ func main() {
 	}
 	defer natsService.Close()
 
-	// Initialize SNMP
-	snmpConfig := snmp.LoadConfig()
-	snmpSimulator := snmp.NewSNMPSimulator(snmpConfig)
-	if err := snmpSimulator.Start(); err != nil {
-		log.Fatalf("Failed to start SNMP simulator: %v", err)
-	}
+	// Initialize IEC 104 service
+	iec104Port, _ := strconv.Atoi(cfg.IEC104Port)
+	timeout, _ := strconv.Atoi(cfg.IEC104Timeout)
+	k, _ := strconv.Atoi(cfg.IEC104K)
+	w, _ := strconv.Atoi(cfg.IEC104W)
 
-	// Initialize SNMP service
-	snmpService := services.NewSNMPService(snmpSimulator, natsService)
-	snmpService.StartPublishing()
+	iec104Service := services.NewIEC104Service(iec104Port, timeout, k, w, natsService)
+	if err := iec104Service.Start(); err != nil {
+		log.Fatalf("Failed to start IEC 104 service: %v", err)
+	}
 
 	// Initialize repositories
 	userRepository := repository.NewUserRepository()
@@ -60,7 +60,7 @@ func main() {
 	chatHandler := delivery.NewChatHandler(chatUsecase)
 	wsHandler := delivery.NewWebSocketHandler(chatUsecase)
 	messageHandler := handlers.NewMessageHandler(natsService, chatUsecase)
-	snmpHandler := delivery.NewSNMPHandler(snmpService)
+	iec104Handler := delivery.NewIEC104Handler(iec104Service)
 
 	// Initialize and configure router
 	router := gin.Default()
@@ -69,12 +69,15 @@ func main() {
 	// router.Use(someMiddleware())
 
 	// Register routes
-	routes.SetupRoutes(router, authHandler, chatHandler, wsHandler, messageHandler, snmpHandler)
+	routes.SetupRoutes(router, authHandler, chatHandler, wsHandler, messageHandler, iec104Handler)
 
 	// Start the server
-	port := cfg.Port
-	log.Printf("Server running on port %s...", port)
-	if err := router.Run(":" + port); err != nil {
+	serverPort, err := strconv.Atoi(cfg.Port)
+	if err != nil {
+		log.Fatalf("Invalid port number: %v", err)
+	}
+	log.Printf("Server running on port %d...", serverPort)
+	if err := router.Run(":" + strconv.Itoa(serverPort)); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}
 }

@@ -5,7 +5,7 @@ services:
     build: .
     ports:
       - "8081:8081"
-      - "1161:161/udp" # Changed SNMP port mapping to use 1161 instead of 161
+      - "104:104/udp" # Changed to use protocol 104
     environment:
       - PORT=8081
       - NATS_URL=nats://nats:4222
@@ -17,8 +17,8 @@ services:
       - DB_SSLMODE=disable
       - JWT_SECRET=UlVwZFpYbGlzN2N3djd4b2lLMjV6OVF0QzM3TkFqQkY=
       - JWT_EXPIRATION_HOURS=24
-      - SNMP_PORT=161
-      - SNMP_COMMUNITY=public
+      - PROTOCOL_PORT=104
+      - PROTOCOL_COMMUNITY=public
     depends_on:
       postgres:
         condition: service_healthy
