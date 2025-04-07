@@ -5,6 +5,7 @@ services:
     build: .
     ports:
       - "8081:8081"
+      - "1161:161/udp" # Changed SNMP port mapping to use 1161 instead of 161
     environment:
       - PORT=8081
       - NATS_URL=nats://nats:4222
@@ -16,11 +17,20 @@ services:
       - DB_SSLMODE=disable
       - JWT_SECRET=UlVwZFpYbGlzN2N3djd4b2lLMjV6OVF0QzM3TkFqQkY=
       - JWT_EXPIRATION_HOURS=24
+      - SNMP_PORT=161
+      - SNMP_COMMUNITY=public
     depends_on:
       postgres:
         condition: service_healthy
       nats:
         condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8081/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     networks:
       - app-network
 
@@ -34,14 +44,30 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     networks:
       - app-network
 
   nats:
     image: nats:2.9.15-alpine
+    hostname: nats
     ports:
-      - "4222:4222"
-    command: "-js"
+      - "4222:4222" # Client connections
+      - "8222:8222" # HTTP monitoring
+    command: "-js -m 8222" # Enable JetStream and monitoring
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8222/healthz" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     networks:
       - app-network
 

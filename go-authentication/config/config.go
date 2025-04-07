@@ -27,28 +27,25 @@ func LoadEnv() {
 }
 
 func Getenv(key, fallback string) string {
-	if vallue, exists := os.LookupEnv(key); exists {
-		return vallue
+	if value, exists := os.LookupEnv(key); exists {
+		return value
 	}
 	return fallback
 }
 
 func LoadConfig() *Config {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal("Error Loading .env file")
-	}
+	// Try to load .env file, but don't fail if it's not found
+	_ = godotenv.Load()
 
 	return &Config{
-		Port:          os.Getenv("PORT"),
-		DBHost:        os.Getenv("DB_HOST"),
-		DBPort:        os.Getenv("DB_PORT"),
-		DBUser:        os.Getenv("DB_USER"),
-		DBPassword:    os.Getenv("DB_PASSWORD"),
-		DBName:        os.Getenv("DB_NAME"),
-		DBSSLMode:     os.Getenv("DB_SSLMODE"),
-		JWTSecret:     os.Getenv("JWT_SECRET"),
-		JWTExpiration: os.Getenv("JWT_EXPIRATION_HOURS"),
+		Port:          Getenv("PORT", "8081"),
+		DBHost:        Getenv("DB_HOST", "postgres"),
+		DBPort:        Getenv("DB_PORT", "5432"),
+		DBUser:        Getenv("DB_USER", "postgres"),
+		DBPassword:    Getenv("DB_PASSWORD", "admin@123"),
+		DBName:        Getenv("DB_NAME", "golang_project"),
+		DBSSLMode:     Getenv("DB_SSLMODE", "disable"),
+		JWTSecret:     Getenv("JWT_SECRET", "UlVwZFpYbGlzN2N3djd4b2lLMjV6OVF0QzM3TkFqQkY="),
+		JWTExpiration: Getenv("JWT_EXPIRATION_HOURS", "24"),
 	}
-
 }
