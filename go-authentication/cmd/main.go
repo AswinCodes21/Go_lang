@@ -10,12 +10,21 @@ import (
 	"go-authentication/internal/services"
 	"go-authentication/internal/usecase"
 	"log"
-	"strconv"
+	"os"
 
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 )
 
 func main() {
+	// Load environment variables from .env file if it exists
+	// This is for local development, in Docker we use environment variables
+	if _, err := os.Stat(".env"); err == nil {
+		if err := godotenv.Load(); err != nil {
+			log.Printf("Warning: Error loading .env file: %v", err)
+		}
+	}
+
 	// Load Config
 	config.LoadEnv()
 
@@ -29,22 +38,16 @@ func main() {
 	// Run database migrations
 	db.Migrate()
 
-	// Initialize NATS service
-	natsService, err := services.NewNatsService()
-	if err != nil {
-		log.Fatalf("Failed to initialize NATS service: %v", err)
+	// Initialize NATS connection
+	natsURL := os.Getenv("NATS_URL")
+	if natsURL == "" {
+		natsURL = "nats://localhost:4222"
 	}
-	defer natsService.Close()
 
-	// Initialize IEC 104 service
-	iec104Port, _ := strconv.Atoi(cfg.IEC104Port)
-	timeout, _ := strconv.Atoi(cfg.IEC104Timeout)
-	k, _ := strconv.Atoi(cfg.IEC104K)
-	w, _ := strconv.Atoi(cfg.IEC104W)
-
-	iec104Service := services.NewIEC104Service(iec104Port, timeout, k, w, natsService)
-	if err := iec104Service.Start(); err != nil {
-		log.Fatalf("Failed to start IEC 104 service: %v", err)
+	// Initialize services
+	iec104Service, err := services.NewIEC104Service(natsURL)
+	if err != nil {
+		log.Fatalf("Failed to initialize IEC104 service: %v", err)
 	}
 
 	// Initialize repositories
@@ -53,13 +56,13 @@ func main() {
 
 	// Initialize usecases
 	authUsecase := usecase.NewAuthorizaationcase(userRepository)
-	chatUsecase := usecase.NewChatUsecase(chatRepository, userRepository, natsService)
+	chatUsecase := usecase.NewChatUsecase(chatRepository, userRepository, nil)
 
 	// Initialize handlers
 	authHandler := delivery.NewAuthHandler(authUsecase)
 	chatHandler := delivery.NewChatHandler(chatUsecase)
 	wsHandler := delivery.NewWebSocketHandler(chatUsecase)
-	messageHandler := handlers.NewMessageHandler(natsService, chatUsecase)
+	messageHandler := handlers.NewMessageHandler(nil, chatUsecase)
 	iec104Handler := delivery.NewIEC104Handler(iec104Service)
 
 	// Initialize and configure router
@@ -72,12 +75,12 @@ func main() {
 	routes.SetupRoutes(router, authHandler, chatHandler, wsHandler, messageHandler, iec104Handler)
 
 	// Start the server
-	serverPort, err := strconv.Atoi(cfg.Port)
-	if err != nil {
-		log.Fatalf("Invalid port number: %v", err)
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8081"
 	}
-	log.Printf("Server running on port %d...", serverPort)
-	if err := router.Run(":" + strconv.Itoa(serverPort)); err != nil {
+	log.Printf("Server running on port %s...", port)
+	if err := router.Run(":" + port); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}
 }

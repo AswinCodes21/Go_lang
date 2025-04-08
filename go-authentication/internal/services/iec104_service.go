@@ -8,9 +8,14 @@ import (
 	"net"
 	"sync"
 	"time"
+
+	"go-authentication/internal/domain"
+
+	"github.com/nats-io/nats.go"
 )
 
 type IEC104Service struct {
+	nc          *nats.Conn
 	port        int
 	timeout     int
 	k           int
@@ -42,13 +47,19 @@ type IEC104Message struct {
 	Data      []DataPoint `json:"data"`
 }
 
-func NewIEC104Service(port, timeout, k, w int, natsService NatsServiceInterface) *IEC104Service {
+func NewIEC104Service(natsURL string) (*IEC104Service, error) {
+	nc, err := nats.Connect(natsURL)
+	if err != nil {
+		return nil, err
+	}
+
 	service := &IEC104Service{
-		port:        port,
-		timeout:     timeout,
-		k:           k,
-		w:           w,
-		natsService: natsService,
+		nc:          nc,
+		port:        502,
+		timeout:     10,
+		k:           1,
+		w:           1,
+		natsService: nil,
 		devices:     make([]*IEC104Device, 0),
 	}
 
@@ -113,7 +124,7 @@ func NewIEC104Service(port, timeout, k, w int, natsService NatsServiceInterface)
 	})
 
 	log.Printf("IEC104Service initialized with %d devices", len(service.devices))
-	return service
+	return service, nil
 }
 
 func (s *IEC104Service) Start() error {
@@ -153,7 +164,7 @@ func (s *IEC104Service) simulateData() {
 
 			// Publish data through NATS
 			subject := fmt.Sprintf("iec104.device.%s.data", device.ID)
-			if err := s.natsService.Publish(subject, msgBytes); err != nil {
+			if err := s.nc.Publish(subject, msgBytes); err != nil {
 				log.Printf("Failed to publish data for device %s: %v", device.ID, err)
 			} else {
 				log.Printf("Published data for device %s", device.ID)
@@ -176,23 +187,24 @@ func (s *IEC104Service) handleConnection(conn net.Conn) {
 	// 4. Manage sequence numbers
 }
 
-func (s *IEC104Service) publishData(device *IEC104Device) {
-	message := IEC104Message{
-		DeviceID:  device.ID,
-		Timestamp: time.Now(),
-		Data:      device.DataPoints,
+func (s *IEC104Service) publishData(deviceID string, data interface{}) {
+	dataMsg := map[string]interface{}{
+		"device_id": deviceID,
+		"data":      data,
+		"timestamp": time.Now(),
 	}
+	msg, _ := json.Marshal(dataMsg)
+	s.nc.Publish(domain.SubjectDeviceData, msg)
+}
 
-	msgBytes, err := json.Marshal(message)
-	if err != nil {
-		log.Printf("Error marshaling IEC 104 data: %v", err)
-		return
+func (s *IEC104Service) publishStatus(deviceID string, status string) {
+	statusMsg := map[string]interface{}{
+		"device_id": deviceID,
+		"status":    status,
+		"timestamp": time.Now(),
 	}
-
-	err = s.natsService.Publish("iec104.data", msgBytes)
-	if err != nil {
-		log.Printf("Error publishing IEC 104 data: %v", err)
-	}
+	data, _ := json.Marshal(statusMsg)
+	s.nc.Publish(domain.SubjectDeviceStatus, data)
 }
 
 func (s *IEC104Service) GetStatus() (bool, int) {

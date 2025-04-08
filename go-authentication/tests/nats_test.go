@@ -126,7 +126,7 @@ func TestDirectNATSConnection(t *testing.T) {
 	testMessage := &domain.Message{
 		SenderID:   1,
 		ReceiverID: 2,
-		Content:    "Hello from port 8080!",
+		Content:    "Hello from port 8081!",
 	}
 	log.Printf("2. Test message created: %+v", testMessage)
 
