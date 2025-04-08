@@ -26,6 +26,7 @@ func (h *ChatHandler) SendMessageHandler(c *gin.Context) {
 	// Get sender ID from token
 	senderIDValue, exists := c.Get("user_id")
 	if !exists {
+		log.Printf("User ID not found in context")
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
@@ -38,16 +39,22 @@ func (h *ChatHandler) SendMessageHandler(c *gin.Context) {
 	case float64:
 		senderID = int(v)
 	default:
+		log.Printf("Invalid user ID type: %T", v)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid user ID type"})
 		return
 	}
 
+	log.Printf("Sender ID extracted: %d", senderID)
+
 	// Parse request body
 	var req domain.MessageRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
+		log.Printf("Error parsing request body: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request", "details": err.Error()})
 		return
 	}
+
+	log.Printf("Request parsed successfully: receiver_id=%d, content=%s", req.ReceiverID, req.Content)
 
 	// Send message
 	message, err := h.ChatUsecase.SendMessage(
@@ -58,9 +65,12 @@ func (h *ChatHandler) SendMessageHandler(c *gin.Context) {
 	)
 
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		log.Printf("Error in ChatUsecase.SendMessage: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+
+	log.Printf("Message sent successfully: id=%d", message.ID)
 
 	c.JSON(http.StatusCreated, gin.H{
 		"message": "Message sent successfully",

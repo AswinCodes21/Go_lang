@@ -53,14 +53,14 @@ services:
 
   nats:
     image: nats:latest
-    command: [ "--http_port", "8222" ]
+    command: [ "--http_port", "8222", "--debug", "--trace" ]
     ports:
       - "4222:4222"
       - "8222:8222"
     networks:
       - app-network
     healthcheck:
-      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8222/varz" ]
+      test: [ "CMD", "nats-server", "-v" ]
       interval: 10s
       timeout: 5s
       retries: 5
