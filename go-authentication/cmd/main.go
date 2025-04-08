@@ -44,6 +44,13 @@ func main() {
 		natsURL = "nats://localhost:4222"
 	}
 
+	// Initialize NATS service
+	natsService, err := services.NewNatsService()
+	if err != nil {
+		log.Fatalf("Failed to initialize NATS service: %v", err)
+	}
+	defer natsService.Close()
+
 	// Initialize services
 	iec104Service, err := services.NewIEC104Service(natsURL)
 	if err != nil {
@@ -56,7 +63,7 @@ func main() {
 
 	// Initialize usecases
 	authUsecase := usecase.NewAuthorizaationcase(userRepository)
-	chatUsecase := usecase.NewChatUsecase(chatRepository, userRepository, nil)
+	chatUsecase := usecase.NewChatUsecase(chatRepository, userRepository, natsService)
 
 	// Initialize handlers
 	authHandler := delivery.NewAuthHandler(authUsecase)
