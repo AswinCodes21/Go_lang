@@ -2,7 +2,6 @@ package routes
 
 import (
 	"go-authentication/handlers"
-	"go-authentication/internal/constants"
 	"go-authentication/internal/delivery"
 
 	"github.com/gin-gonic/gin"
@@ -29,13 +28,13 @@ func SetupRoutes(router *gin.Engine, authHandler *delivery.AuthHandler, chatHand
 		auth.GET("/ws", wsHandler.HandleWebSocket)
 
 		// IEC104 routes
-		iec104 := auth.Group(constants.IEC104BasePath)
+		iec104 := auth.Group("/iec104")
 		{
-			iec104.GET(constants.IEC104DevicesPath, iec104Handler.GetDevices)
-			iec104.GET(constants.IEC104DevicePath+constants.IEC104StatusPath, iec104Handler.GetDeviceStatus)
-			iec104.GET(constants.IEC104DevicePath+constants.IEC104DataPath, iec104Handler.GetLatestData)
-			iec104.POST(constants.IEC104DevicePath+constants.IEC104ConnectPath, iec104Handler.ConnectToDevice)
-			iec104.POST(constants.IEC104DevicePath+constants.IEC104DisconnectPath, iec104Handler.DisconnectFromDevice)
+			iec104.GET("/devices", iec104Handler.GetDevices)
+			iec104.GET("/device/:device_id/status", iec104Handler.GetDeviceStatus)
+			iec104.GET("/device/:device_id/data", iec104Handler.GetLatestData)
+			iec104.POST("/device/:device_id/connect", iec104Handler.ConnectToDevice)
+			iec104.POST("/device/:device_id/disconnect", iec104Handler.DisconnectFromDevice)
 		}
 	}
 }

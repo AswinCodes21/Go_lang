@@ -20,11 +20,14 @@ FROM alpine:latest
 
 WORKDIR /app
 
+# Install necessary dependencies
+RUN apk add --no-cache ca-certificates tzdata
+
 # Copy the binary from builder
 COPY --from=builder /app/main .
 
 # Expose port
-EXPOSE 8080
+EXPOSE 8081
 
 # Run the application
 CMD ["./main"]

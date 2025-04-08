@@ -3,7 +3,7 @@ package delivery
 import (
 	"net/http"
 
-	"go-authentication/internal/constants"
+	"go-authentication/internal/domain"
 	"go-authentication/internal/services"
 
 	"github.com/gin-gonic/gin"
@@ -43,7 +43,7 @@ func (h *IEC104Handler) GetLatestData(c *gin.Context) {
 	data := h.service.GetLatestData(deviceID)
 	if data == nil {
 		c.JSON(http.StatusNotFound, gin.H{
-			"error": constants.ErrDeviceNotFound,
+			"error": domain.ErrDeviceNotFound,
 		})
 		return
 	}
